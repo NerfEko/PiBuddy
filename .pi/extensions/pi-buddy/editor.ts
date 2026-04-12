@@ -156,13 +156,13 @@ export class BuddyEditor extends CustomEditor {
     }
 
     // If no overflow lines but bubble is active, put bubble on the first editor line
-    if (overflowCount === 0 && bubbleLine) {
+    if (overflowCount === 0 && bubbleText) {
       const firstEditorLine = result[0] ?? '';
       const spriteStart = width - spriteWidth - rightOffset;
       const available = spriteStart - 1;
-      if (available > bubbleLine.length) {
-        const bPad = available - bubbleLine.length;
-        result[0] = overlayRight(' '.repeat(bPad) + bubbleLine + ' '.repeat(spriteWidth + 1), result[0]!, width, rightOffset);
+      if (available > bubbleText.length) {
+        const bPad = available - bubbleText.length;
+        result[0] = overlayRight(' '.repeat(bPad) + bubbleText + ' '.repeat(spriteWidth + 1), result[0]!, width, rightOffset);
       }
     }
 
@@ -185,64 +185,4 @@ export function clearBuddyEditor(ctx: any): void {
   if (ctx.hasUI) {
     ctx.ui.setEditorComponent(undefined);
   }
-  dismissBubble();
-}
-
-let bubbleHandle: any = null;
-let bubbleTimer: ReturnType<typeof setInterval> | undefined;
-
-function dismissBubble(): void {
-  if (bubbleHandle) {
-    try { bubbleHandle.hide(); } catch {}
-    bubbleHandle = null;
-  }
-  if (bubbleTimer) {
-    clearInterval(bubbleTimer);
-    bubbleTimer = undefined;
-  }
-}
-
-export function showBubbleOverlay(ctx: ExtensionContext, runtime: BuddyEditorRuntime): void {
-  if (!ctx.hasUI) return;
-  dismissBubble();
-
-  ctx.ui.custom<void>(
-    (tui, _theme, _kb, _done) => {
-      const component = {
-        render(width: number): string[] {
-          const visual = runtime.getVisualState();
-          if (!visual.bubbleText || visual.bubbleUntil <= Date.now()) return [''];
-          const lines = buildBubbleLines(visual.bubbleText, Math.min(width, 34));
-          // Right-align within the overlay
-          return lines.map(l => {
-            const pad = Math.max(0, width - l.length);
-            return ' '.repeat(pad) + l;
-          });
-        },
-        invalidate() {},
-      };
-      bubbleTimer = setInterval(() => {
-        const visual = runtime.getVisualState();
-        if (!visual.bubbleText || visual.bubbleUntil <= Date.now()) {
-          dismissBubble();
-          return;
-        }
-        tui.requestRender();
-      }, 500);
-      return component;
-    },
-    {
-      overlay: true,
-      overlayOptions: {
-        anchor: 'bottom-right',
-        width: 36,
-        maxHeight: '20%',
-        margin: { bottom: 8, right: 0, top: 0, left: 0 },
-        nonCapturing: true,
-      },
-      onHandle: (handle: any) => {
-        bubbleHandle = handle;
-      },
-    },
-  );
 }
