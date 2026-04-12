@@ -109,17 +109,11 @@ class BuddyOverlayComponent {
   constructor(private runtime: BuddyEditorRuntime) {}
 
   render(width: number): string[] {
-    // Right-align content within the overlay box so the sprite
-    // stays anchored at the right edge regardless of overlay width
     const display = getBuddyDisplay(this.runtime);
     if (!display.visible) return [];
-    const contentWidth = widest(display.lines);
-    return display.lines.map(line => {
-      const vw = visibleWidth(line);
-      const pad = Math.max(0, width - contentWidth);
-      if (pad > 0) return ' '.repeat(pad) + rpad(line, contentWidth);
-      return line;
-    });
+    // Pad each line to overlay width so sprite column stays consistent.
+    // The TUI's bottom-right anchor positions the box; we just fill it.
+    return display.lines.map(line => rpad(line, width));
   }
 
   invalidate(): void {}
