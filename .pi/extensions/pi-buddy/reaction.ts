@@ -8,11 +8,9 @@ import { classifyTurn, generateLocalReaction, type TurnSummary } from './reactio
 export { classifyTurn, generateLocalReaction } from './reaction-core.ts';
 
 const CHEAP_MODEL_IDS = [
+  ['github-copilot', 'claude-haiku-4.5'],
   ['github-copilot', 'gpt-4o'],
   ['github-copilot', 'gemini-3-flash-preview'],
-  ['github-copilot', 'gpt-5-mini'],
-  ['github-copilot', 'claude-haiku-4.5'],
-  ['github-copilot', 'gpt-5.4-mini'],
 ] as const;
 
 async function findCheapModel(ctx: ExtensionContext): Promise<{ model: Model<Api>; apiKey: string; headers?: Record<string, string> } | null> {
