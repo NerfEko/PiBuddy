@@ -117,7 +117,7 @@ export async function saveState(_cwd?: string | BuddyState, state?: BuddyState):
   const actualState: BuddyState = state ?? (_cwd as unknown as BuddyState);
   const path = getGlobalStatePath();
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  await writeFile(path, `${JSON.stringify(actualState, null, 2)}\n`, 'utf8');
 }
 
 export function getActiveBuddy(state: BuddyState): BuddyRecord | undefined {

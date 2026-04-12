@@ -1,8 +1,8 @@
 import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import type { ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { visibleWidth } from '@mariozechner/pi-tui';
-import { IDLE_SEQUENCE } from './constants.ts';
-import { renderSprite } from './sprites.ts';
+import { IDLE_SEQUENCE, SPRITES } from './constants.ts';
+import { renderSprite, substituteEyes } from './sprites.ts';
 import { starsForRarity } from './theme.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
 
@@ -132,24 +132,37 @@ export class BuddyEditor extends CustomEditor {
     const result = editorLines.map(l => rpad(l, width));
     const rightOffset = 0;
 
+    // Pre-compute max non-blank overflow across all frames so layout is stable during animation
+    const allFrames = SPRITES[buddy.species];
+    let maxStableOverflow = 0;
+    for (const fr of allFrames) {
+      const frLines = [...fr.map(l => substituteEyes(l, buddy.eye))];
+      // Hearts may replace blank line 0
+      let start = 0;
+      while (start < frLines.length && frLines[start]!.trim() === '') start++;
+      const overflow = Math.max(0, (frLines.length + 1) - result.length); // +1 for name line
+      const nonBlankOverflow = overflow - start;
+      if (nonBlankOverflow > maxStableOverflow) maxStableOverflow = nonBlankOverflow;
+    }
+
     // How many panel lines fit in the editor
     const fitsInEditor = Math.min(panelLines.length, result.length);
     const rawOverflow = panelLines.length - fitsInEditor;
 
-    // Skip blank sprite lines at the top of overflow — they just create an empty left gap
-    // Only allow non-blank overflow lines (or bubble lines)
+    // Skip blank sprite lines at the top of overflow
     let overflowStart = 0;
     while (overflowStart < rawOverflow && panelLines[overflowStart]!.trim() === '') {
       overflowStart++;
     }
     const trimmedOverflow = rawOverflow - overflowStart;
-    // When bubble active: up to 3 lines; when idle: all non-blank overflow lines
-    const overflowCount = showBubble ? Math.min(trimmedOverflow, 3) : trimmedOverflow;
-    const panelShift = overflowStart + (trimmedOverflow - overflowCount);
+    // Use the stable max so layout doesn't shift between animation frames
+    const overflowCount = showBubble ? Math.min(maxStableOverflow, 3) : maxStableOverflow;
+    const panelShift = rawOverflow - Math.min(overflowCount, trimmedOverflow) - Math.max(0, overflowCount - trimmedOverflow);
+    const actualOverflow = Math.min(overflowCount, trimmedOverflow);
 
     // Paint what fits into editor lines (bottom-aligned), skipping top lines if capped
     for (let i = 0; i < fitsInEditor; i++) {
-      const panelIdx = overflowCount + panelShift + i;
+      const panelIdx = actualOverflow + panelShift + i;
       const lineIdx = result.length - fitsInEditor + i;
       if (lineIdx >= 0 && lineIdx < result.length) {
         result[lineIdx] = overlayRight(result[lineIdx]!, panelLines[panelIdx]!, width, rightOffset);
@@ -167,14 +180,14 @@ export class BuddyEditor extends CustomEditor {
     // Prepend overflow lines above the editor
     const aboveLines: string[] = [];
 
-    // Overflow lines: top border, text, bottom border of bubble (left) + sprite lines (right)
-    for (let i = 0; i < overflowCount; i++) {
+    // Overflow lines: bubble (left) + sprite head (right)
+    for (let i = 0; i < actualOverflow; i++) {
       const spritePart = panelLines[panelShift + i]!;
       const pad = Math.max(0, width - spritePart.length - rightOffset);
       const available = pad - 1;
 
       let bubblePart = '';
-      if (bubbleContent && overflowCount === 3) {
+      if (bubbleContent && actualOverflow === 3) {
         if (i === 0) bubblePart = bubbleTopLine;
         else if (i === 1) bubblePart = bubbleContent;
         else if (i === 2) bubblePart = bubbleBotLine;
@@ -193,7 +206,7 @@ export class BuddyEditor extends CustomEditor {
     }
 
     // If no overflow lines but bubble is active, put bubble on the first editor line
-    if (overflowCount === 0 && bubbleText) {
+    if (actualOverflow === 0 && bubbleText) {
       const firstEditorLine = result[0] ?? '';
       const spriteStart = width - spriteWidth - rightOffset;
       const available = spriteStart - 1;
