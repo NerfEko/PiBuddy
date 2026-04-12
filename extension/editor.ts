@@ -172,7 +172,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
         return {
           anchor: 'bottom-right',
           width: Math.max(1, display.overlayWidth),
-          margin: { right: 1, bottom: 5 },
+          margin: { right: 1, bottom: 3 },
           nonCapturing: true,
           visible: (termWidth: number) => termWidth >= 60 && getBuddyDisplay(runtime).visible,
         };
