@@ -111,12 +111,16 @@ export function installBuddyOverlay(pi: ExtensionAPI, ctx: ExtensionContext, run
     },
     {
       overlay: true,
-      overlayOptions: {
-        anchor: 'bottom-right',
-        width: 22,
-        maxHeight: '40%',
-        margin: { bottom: 5, right: 2, top: 0, left: 0 },
-        nonCapturing: true,
+      overlayOptions: () => {
+        const visual = runtime.getVisualState();
+        const hasBubble = visual.bubbleText && visual.bubbleUntil > Date.now();
+        return {
+          anchor: 'bottom-right' as const,
+          width: hasBubble ? 34 : 22,
+          maxHeight: '50%',
+          margin: { bottom: 5, right: 2, top: 0, left: 0 },
+          nonCapturing: true,
+        };
       },
       onHandle: (handle: any) => {
         overlayHandle = handle;

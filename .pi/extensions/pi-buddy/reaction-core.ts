@@ -36,27 +36,49 @@ export function classifyTurn(input: { assistantText?: string; toolResults?: Arra
   };
 }
 
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]!;
+}
+
 const OPENERS: Record<TurnKind, string[]> = {
-  coding: ['Nice patch.', 'That diff had good bones.', 'Clean move.'],
-  debugging: ['Aha, that bug squeaked.', 'Found the gremlin.', 'That stack trace blinked first.'],
-  planning: ['A tidy plan helps.', 'Good map, fewer swamps.', 'Roadmap acquired.'],
-  'quick-answer': ['Short and sharp.', 'Tiny answer, big energy.', 'Straight to the point.'],
-  general: ['Still with you.', 'Terminal vibes remain excellent.', 'I approve of this turn.'],
+  coding: [
+    'Nice patch!', 'Clean diff.', 'That code looks solid.', 'Good edit.',
+    'Shipped it.', 'Tidy work.', 'Love that refactor.', 'Another file conquered.',
+    'Code flows nicely.', 'That function sparks joy.',
+  ],
+  debugging: [
+    'Bug squashed!', 'Found the gremlin.', 'Stack trace blinked first.',
+    'That error had it coming.', 'One less bug in the world.', 'Squish.',
+    'The logs never lie.', 'Debugging wizard move.', 'Error go bye-bye.',
+  ],
+  planning: [
+    'Good plan.', 'Roadmap acquired.', 'Smart strategy.', 'Nice breakdown.',
+    'That outline has legs.', 'Planning pays off.', 'Clear thinking.',
+  ],
+  'quick-answer': [
+    'Short and sharp.', 'Quick win.', 'Straight to the point.',
+    'No wasted words.', 'Efficient.', 'Boom. Done.', 'Snappy.',
+  ],
+  general: [
+    'Still here!', 'Vibes are good.', '*nods approvingly*',
+    'Watching and learning.', 'Carry on!', 'I see you working.',
+    '*blinks supportively*', 'Terminal energy is high.',
+    'Doing great.', '*stretches*', 'Nice session.',
+  ],
 };
 
-const PEAK_TAILS = {
-  DEBUGGING: 'Your debugging aura is showing.',
-  PATIENCE: 'Patient wins beat heroic rewrites.',
-  CHAOS: 'Just enough chaos to stay interesting.',
-  WISDOM: 'That had wise-bird energy.',
-  SNARK: 'Respectfully: excellent sass-to-output ratio.',
-} as const;
+const TAILS: Record<string, string[]> = {
+  DEBUGGING: ['Debug aura: strong.', 'Bug radar activated.', 'Logs are your friend.'],
+  PATIENCE: ['Patience wins.', 'Slow and steady.', 'No rush needed.'],
+  CHAOS: ['Chaos energy!', 'Embrace the entropy.', 'Controlled chaos.'],
+  WISDOM: ['Wise move.', 'Big brain energy.', 'Owl-level wisdom.'],
+  SNARK: ['*slow clap*', 'Sass approved.', 'Maximum snark achieved.'],
+};
 
 export function generateLocalReaction(buddy: BuddyRecord, summary: TurnSummary): string {
   const high = getHighestStat(buddy.stats);
-  const low = getLowestStat(buddy.stats);
-  const starters = OPENERS[summary.turnKind];
-  const base = starters[(buddy.seed + summary.assistantSummary.length) % starters.length]!;
-  const weakness = low.name === 'DEBUGGING' && summary.turnKind === 'debugging' ? ' Even heroes need logs.' : '';
-  return `${base} ${PEAK_TAILS[high.name]}${weakness}`.slice(0, 90);
+  const opener = pick(OPENERS[summary.turnKind]);
+  const tails = TAILS[high.name] ?? ['Nice.'];
+  const tail = Math.random() < 0.5 ? ` ${pick(tails)}` : '';
+  return `${opener}${tail}`.slice(0, 60);
 }
