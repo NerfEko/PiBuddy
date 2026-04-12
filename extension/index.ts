@@ -37,8 +37,17 @@ export default function (pi: ExtensionAPI) {
 
   const activeBuddy = () => getActiveBuddy(state);
 
+  let lastInstalledBuddyId: string | null | undefined = undefined;
+
   const syncStatus = (ctx: ExtensionContext) => {
     requestRender();
+    // Re-install the editor overlay when the active buddy changes
+    // so the overlay width always matches the new buddy's name/sprite
+    const currentId = state.activeBuddyId;
+    if (ctx.hasUI && currentId !== lastInstalledBuddyId && buddyRuntime) {
+      lastInstalledBuddyId = currentId;
+      installBuddyEditor(pi, ctx, buddyRuntime);
+    }
   };
 
   const installFooter = (ctx: ExtensionContext) => {
@@ -339,6 +348,7 @@ export default function (pi: ExtensionAPI) {
       getVisualState: () => visual,
     };
 
+    lastInstalledBuddyId = state.activeBuddyId;
     installBuddyEditor(pi, ctx, buddyRuntime);
     installFooter(ctx);
 
