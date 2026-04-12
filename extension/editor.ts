@@ -111,9 +111,18 @@ class BuddyOverlayComponent {
   render(width: number): string[] {
     const display = getBuddyDisplay(this.runtime);
     if (!display.visible) return [];
-    // Pad each line to overlay width so sprite column stays consistent.
-    // The TUI's bottom-right anchor positions the box; we just fill it.
-    return display.lines.map(line => rpad(line, width));
+    // Right-align content within the fixed-width overlay box.
+    // Sprite-only lines get left-padded so the sprite stays at the right edge.
+    // Bubble+sprite lines fill more of the width naturally.
+    const contentWidth = widest(display.lines);
+    const pad = Math.max(0, width - contentWidth);
+    return display.lines.map(line => {
+      const vw = visibleWidth(line);
+      const linePad = Math.max(0, width - vw);
+      // Don't pad with spaces — just position the content at the right edge
+      if (linePad > 0) return ' '.repeat(linePad) + line;
+      return line.slice(0, width);
+    });
   }
 
   invalidate(): void {}
@@ -168,15 +177,12 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
     (_tui: any, _theme: any, _keybindings: any, _done: (result: void) => void) => new BuddyOverlayComponent(runtime),
     {
       overlay: true,
-      overlayOptions: () => {
-        const display = getBuddyDisplay(runtime);
-        return {
-          anchor: 'bottom-right',
-          width: display.overlayWidth || display.reservedWidth,
-          margin: { right: 1, bottom: 2 },
-          nonCapturing: true,
-          visible: (termWidth: number) => termWidth >= 60 && getBuddyDisplay(runtime).visible,
-        };
+      overlayOptions: {
+        anchor: 'bottom-right' as const,
+        width: 48,
+        margin: { right: 1, bottom: 2 },
+        nonCapturing: true,
+        visible: (termWidth: number) => termWidth >= 60 && getBuddyDisplay(runtime).visible,
       },
       onHandle: (handle) => {
         buddyOverlayHandle = handle;
