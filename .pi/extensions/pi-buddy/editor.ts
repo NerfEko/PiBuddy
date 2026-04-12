@@ -100,10 +100,18 @@ export class BuddyEditor extends CustomEditor {
     const showHearts = visual.heartsUntil > now;
     const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
 
-    // Hearts always above sprite when active
+    // If hearts active and first sprite line is blank, replace it with hearts
+    // Otherwise add hearts as a separate line above
+    const spriteLines = [...sprite];
+    let heartsInlined = false;
+    if (heartsStr && spriteLines[0]?.trim() === '') {
+      spriteLines[0] = heartsStr.padEnd(spriteWidth);
+      heartsInlined = true;
+    }
+
     const panelLines = [
-      ...(heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
-      ...sprite,
+      ...(!heartsInlined && heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
+      ...spriteLines,
       nameLine.padEnd(spriteWidth),
     ];
 
