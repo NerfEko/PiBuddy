@@ -2,6 +2,8 @@
 
 > **Experimental** — this extension is a work in progress. Expect rough edges, layout quirks, and occasional crashes. Pull requests with improvements are very welcome.
 
+![pi-buddy screenshot](buddy.png)
+
 A recreation of the Claude Code companion experience for [Pi](https://github.com/badlogic/pi-mono). Based on the idea of the Claude Code buddy — an animated ASCII creature that sits beside your input, reacts to what you are doing, and collects a roster of unique companions over time.
 
 This is not an official project and has no affiliation with Anthropic or Claude Code.
