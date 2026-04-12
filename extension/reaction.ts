@@ -24,7 +24,7 @@ export async function maybeGenerateReaction(
     return Math.random() < 0.3 ? { text: local, source: 'local' } : null;
   }
 
-  const cheap = await findCheapModel(ctx);
+  const cheap = await findCheapModel(ctx, state);
   if (!cheap) return Math.random() < 0.3 ? { text: local, source: 'local' } : null;
   if (
     !canUseModelReaction({

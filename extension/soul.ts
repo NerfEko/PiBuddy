@@ -36,7 +36,7 @@ export async function generateSoul(
   buddy: Pick<BuddyRecord, 'species' | 'rarity' | 'shiny' | 'stats'>,
 ): Promise<{ name: string; personality: string; soulSource: 'model' | 'fallback' }> {
   const fallback = generateFallbackSoul(buddy);
-  const cheap = await findCheapModel(ctx);
+  const cheap = await findCheapModel(ctx, state);
   if (!canUseModelSoul(state, !!cheap)) return fallback;
 
   try {

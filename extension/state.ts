@@ -13,6 +13,7 @@ export interface BuddySettings {
   reactionMode: 'local-only' | 'cheap-model' | 'off';
   maxBuddyModelCallsPerSession: number;
   maxReactionCallsPerSession: number;
+  preferredModel?: string; // "provider/id" or undefined for auto-detect
 }
 
 export interface SessionUsage {

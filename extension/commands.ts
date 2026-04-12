@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
 
-export type BuddyCommandAction = 'default' | 'hatch' | 'list' | 'switch' | 'card' | 'pet' | 'mute' | 'unmute' | 'off' | 'on' | 'reroll' | 'spawn' | 'rename' | 'delete';
+export type BuddyCommandAction = 'default' | 'hatch' | 'list' | 'switch' | 'card' | 'pet' | 'mute' | 'unmute' | 'off' | 'on' | 'reroll' | 'spawn' | 'rename' | 'delete' | 'model';
 
 export interface BuddyCommand {
   action: BuddyCommandAction;
@@ -21,6 +21,7 @@ export interface BuddyCommandRuntime {
   spawn(ctx: any, query: string): Promise<void>;
   rename(ctx: any, query: string): Promise<void>;
   deleteBuddy(ctx: any): Promise<void>;
+  model(ctx: any): Promise<void>;
 }
 
 export function parseBuddyCommand(args?: string): BuddyCommand {
@@ -39,6 +40,7 @@ export function parseBuddyCommand(args?: string): BuddyCommand {
     case 'on':
     case 'reroll':
     case 'delete':
+    case 'model':
       return { action: head };
     case 'switch':
     case 'spawn':
@@ -79,11 +81,13 @@ export async function executeBuddyCommand(command: BuddyCommand, ctx: any, runti
       return runtime.rename(ctx, command.value || '');
     case 'delete':
       return runtime.deleteBuddy(ctx);
+    case 'model':
+      return runtime.model(ctx);
   }
 }
 
 export function registerBuddyCommands(pi: ExtensionAPI, runtime: BuddyCommandRuntime): void {
-  const subcommands = ['hatch', 'list', 'switch', 'card', 'pet', 'mute', 'unmute', 'off', 'on', 'reroll', 'spawn', 'rename', 'delete'];
+  const subcommands = ['hatch', 'list', 'switch', 'card', 'pet', 'mute', 'unmute', 'off', 'on', 'reroll', 'spawn', 'rename', 'delete', 'model'];
   const speciesList = ['duck','goose','blob','cat','dragon','octopus','owl','penguin','turtle','snail','ghost','axolotl','capybara','cactus','robot','rabbit','mushroom','chonk'];
 
   pi.registerCommand('buddy', {

@@ -1,5 +1,6 @@
-import { complete, type Model, type Api, type UserMessage } from '@mariozechner/pi-ai';
+import { type Model, type Api } from '@mariozechner/pi-ai';
 import type { ExtensionContext } from '@mariozechner/pi-coding-agent';
+import type { BuddyState } from './state.ts';
 
 /**
  * Ordered list of cheap/fast models to try for buddy AI calls.
@@ -25,7 +26,20 @@ export const BUDDY_CHEAP_MODELS = [
 
 export async function findCheapModel(
   ctx: ExtensionContext,
+  state?: BuddyState,
 ): Promise<{ model: Model<Api>; apiKey: string; headers?: Record<string, string> } | null> {
+  // Check user's preferred model first
+  if (state?.settings.preferredModel) {
+    const [provider, ...idParts] = state.settings.preferredModel.split('/');
+    const id = idParts.join('/');
+    if (provider && id) {
+      const model = ctx.modelRegistry.find(provider, id);
+      if (model) {
+        const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+        if (auth.ok && auth.apiKey) return { model, apiKey: auth.apiKey, headers: auth.headers };
+      }
+    }
+  }
   for (const [provider, id] of BUDDY_CHEAP_MODELS) {
     const model = ctx.modelRegistry.find(provider, id);
     if (!model) continue;

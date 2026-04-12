@@ -302,7 +302,32 @@ export default function (pi: ExtensionAPI) {
       syncStatus(ctx);
       ctx.ui.notify(`${buddy.name} has been released into the wild.`, 'info');
     },
-  });
+    async model(ctx) {
+      const available = ctx.modelRegistry.getAvailable();
+      if (!available || available.length === 0) {
+        ctx.ui.notify('No models available.', 'error');
+        return;
+      }
+      const current = state.settings.preferredModel;
+      const autoLabel = `Auto-detect${!current ? ' (current)' : ''}`;
+      const modelLabels = available.map((m: any) => {
+        const key = `${m.provider}/${m.id}`;
+        return `${key}${current === key ? ' (current)' : ''}`;
+      });
+      const choices = [autoLabel, ...modelLabels];
+      const selected = await ctx.ui.select('Buddy model', choices);
+      if (selected == null) return;
+      if (selected === autoLabel) {
+        state.settings.preferredModel = undefined;
+        await save();
+        ctx.ui.notify('Buddy model: auto-detect', 'success');
+      } else {
+        const key = selected.replace(' (current)', '');
+        state.settings.preferredModel = key;
+        await save();
+        ctx.ui.notify(`Buddy model: ${key}`, 'success');
+      }
+    },
 
   pi.on('session_start', async (_event, ctx) => {
     state = await loadState();
