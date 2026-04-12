@@ -187,6 +187,74 @@ export default function (pi: ExtensionAPI) {
     async reroll(ctx) {
       await hatch(ctx);
     },
+    async spawn(ctx, query) {
+      const species = query.trim().toLowerCase();
+      const { SPECIES } = await import('./constants.ts');
+      if (!species || !(SPECIES as readonly string[]).includes(species)) {
+        ctx.ui.notify(`Unknown species. Options: ${SPECIES.join(', ')}`, 'error');
+        return;
+      }
+      try {
+        const seed = randomSeed();
+        const roll = rollBuddy(seed);
+        // Override species with the requested one
+        const baseBuddy: BuddyRecord = {
+          id: makeBuddyId(seed, species),
+          seed,
+          createdAt: new Date().toISOString(),
+          species: species as any,
+          rarity: roll.rarity,
+          eye: roll.eye,
+          hat: roll.hat,
+          shiny: roll.shiny,
+          stats: roll.stats,
+          name: '',
+          personality: '',
+          soulSource: 'fallback',
+          timesPetted: 0,
+        };
+        const soul = await generateSoul(ctx, state, baseBuddy);
+        const buddy: BuddyRecord = { ...baseBuddy, ...soul };
+        state.buddies.push(buddy);
+        state.activeBuddyId = buddy.id;
+        await save();
+        syncStatus(ctx);
+        ctx.ui.notify(`Spawned ${buddy.name} the ${species}!`, 'success');
+      } catch (err: any) {
+        ctx.ui.notify(`Spawn error: ${err?.message || err}`, 'error');
+      }
+    },
+    async rename(ctx, query) {
+      const buddy = activeBuddy();
+      if (!buddy) {
+        ctx.ui.notify('No active buddy to rename.', 'error');
+        return;
+      }
+      const newName = query.trim();
+      if (!newName) {
+        ctx.ui.notify('Usage: /buddy rename <new name>', 'error');
+        return;
+      }
+      const oldName = buddy.name;
+      buddy.name = newName;
+      await save();
+      syncStatus(ctx);
+      ctx.ui.notify(`Renamed ${oldName} → ${newName}`, 'success');
+    },
+    async deleteBuddy(ctx) {
+      const buddy = activeBuddy();
+      if (!buddy) {
+        ctx.ui.notify('No active buddy to delete.', 'error');
+        return;
+      }
+      const ok = await ctx.ui.confirm('Delete buddy', `Delete ${buddy.name} forever?`);
+      if (!ok) return;
+      state.buddies = state.buddies.filter(b => b.id !== buddy.id);
+      state.activeBuddyId = state.buddies.length > 0 ? state.buddies[state.buddies.length - 1]!.id : null;
+      await save();
+      syncStatus(ctx);
+      ctx.ui.notify(`${buddy.name} has been released into the wild.`, 'info');
+    },
   });
 
   pi.on('session_start', async (_event, ctx) => {

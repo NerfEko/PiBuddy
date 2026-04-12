@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
 
-export type BuddyCommandAction = 'default' | 'hatch' | 'list' | 'switch' | 'card' | 'pet' | 'mute' | 'unmute' | 'off' | 'on' | 'reroll';
+export type BuddyCommandAction = 'default' | 'hatch' | 'list' | 'switch' | 'card' | 'pet' | 'mute' | 'unmute' | 'off' | 'on' | 'reroll' | 'spawn' | 'rename' | 'delete';
 
 export interface BuddyCommand {
   action: BuddyCommandAction;
@@ -18,7 +18,9 @@ export interface BuddyCommandRuntime {
   unmute(ctx: any): Promise<void>;
   off(ctx: any): Promise<void>;
   on(ctx: any): Promise<void>;
-  reroll(ctx: any): Promise<void>;
+  spawn(ctx: any, query: string): Promise<void>;
+  rename(ctx: any, query: string): Promise<void>;
+  deleteBuddy(ctx: any): Promise<void>;
 }
 
 export function parseBuddyCommand(args?: string): BuddyCommand {
@@ -36,9 +38,12 @@ export function parseBuddyCommand(args?: string): BuddyCommand {
     case 'off':
     case 'on':
     case 'reroll':
+    case 'delete':
       return { action: head };
     case 'switch':
-      return { action: 'switch', value };
+    case 'spawn':
+    case 'rename':
+      return { action: head, value };
     default:
       return { action: 'default' };
   }
@@ -68,12 +73,34 @@ export async function executeBuddyCommand(command: BuddyCommand, ctx: any, runti
       return runtime.on(ctx);
     case 'reroll':
       return runtime.reroll(ctx);
+    case 'spawn':
+      return runtime.spawn(ctx, command.value || '');
+    case 'rename':
+      return runtime.rename(ctx, command.value || '');
+    case 'delete':
+      return runtime.deleteBuddy(ctx);
   }
 }
 
 export function registerBuddyCommands(pi: ExtensionAPI, runtime: BuddyCommandRuntime): void {
+  const subcommands = ['hatch', 'list', 'switch', 'card', 'pet', 'mute', 'unmute', 'off', 'on', 'reroll', 'spawn', 'rename', 'delete'];
+  const speciesList = ['duck','goose','blob','cat','dragon','octopus','owl','penguin','turtle','snail','ghost','axolotl','capybara','cactus','robot','rabbit','mushroom','chonk'];
+
   pi.registerCommand('buddy', {
     description: 'Hatch, view, and manage Pi buddies',
+    getArgumentCompletions: (prefix: string) => {
+      const parts = prefix.trim().split(/\s+/);
+      if (parts.length <= 1) {
+        const items = subcommands.map(s => ({ value: s, label: s }));
+        return items.filter(i => i.value.startsWith(parts[0] || ''));
+      }
+      // Second arg for spawn = species
+      if (parts[0] === 'spawn' && parts.length === 2) {
+        const items = speciesList.map(s => ({ value: `spawn ${s}`, label: s }));
+        return items.filter(i => i.label.startsWith(parts[1] || ''));
+      }
+      return null;
+    },
     handler: async (args, ctx) => {
       await executeBuddyCommand(parseBuddyCommand(args), ctx, runtime);
     },
