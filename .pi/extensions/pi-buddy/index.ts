@@ -51,8 +51,9 @@ export default function (pi: ExtensionAPI) {
   };
 
   const hatch = async (ctx: ExtensionContext) => {
-    const roll = rollBuddy(randomSeed());
-    const baseBuddy: BuddyRecord = {
+    try {
+      const roll = rollBuddy(randomSeed());
+      const baseBuddy: BuddyRecord = {
       id: makeBuddyId(roll.seed, roll.species),
       seed: roll.seed,
       createdAt: new Date().toISOString(),
@@ -74,6 +75,9 @@ export default function (pi: ExtensionAPI) {
     await save();
     syncStatus(ctx);
     ctx.ui.notify(`Hatched ${buddy.name} the ${buddy.species}!`, 'success');
+    } catch (err: any) {
+      ctx.ui.notify(`Hatch error: ${err?.message || err}`, 'error');
+    }
   };
 
   const switchBuddy = async (ctx: ExtensionContext, query: string) => {
@@ -95,8 +99,21 @@ export default function (pi: ExtensionAPI) {
 
   registerBuddyCommands(pi, {
     async openDefault(ctx) {
-      if (state.buddies.length === 0) return hatch(ctx);
-      return this.card(ctx);
+      try {
+        if (!state || state.buddies.length === 0) {
+          ctx.ui.notify('No buddies yet — hatching one...', 'info');
+          return hatch(ctx);
+        }
+        const buddy = activeBuddy();
+        if (!buddy) {
+          ctx.ui.notify('No active buddy found. Hatching...', 'info');
+          return hatch(ctx);
+        }
+        ctx.ui.notify(`Showing card for ${buddy.name}`, 'info');
+        return this.card(ctx);
+      } catch (err: any) {
+        ctx.ui.notify(`/buddy error: ${err?.message || err}`, 'error');
+      }
     },
     hatch,
     async list(ctx) {
@@ -116,7 +133,11 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify('No active buddy yet. Use /buddy hatch.', 'info');
         return;
       }
-      await showBuddyCard(ctx, buddy, state);
+      try {
+        await showBuddyCard(ctx, buddy, state);
+      } catch (err: any) {
+        ctx.ui.notify(`Card error: ${err?.message || err}`, 'error');
+      }
     },
     async pet(ctx) {
       const buddy = activeBuddy();
@@ -124,14 +145,19 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify('No buddy to pet yet.', 'info');
         return;
       }
-      buddy.timesPetted = (buddy.timesPetted || 0) + 1;
-      visual.animationState = 'petted';
-      visual.heartsUntil = Date.now() + 2500;
-      const reaction = buddy.lastSaid || `*${buddy.name} looks delighted*`;
-      visual.bubbleText = reaction;
-      visual.bubbleUntil = Date.now() + 4000;
-      await save();
-      requestRender();
+      try {
+        buddy.timesPetted = (buddy.timesPetted || 0) + 1;
+        visual.animationState = 'petted';
+        visual.heartsUntil = Date.now() + 2500;
+        const reaction = buddy.lastSaid || `*${buddy.name} looks delighted*`;
+        visual.bubbleText = reaction;
+        visual.bubbleUntil = Date.now() + 4000;
+        await save();
+        requestRender();
+        ctx.ui.notify(`${buddy.name} loved that! (petted ${buddy.timesPetted}x)`, 'success');
+      } catch (err: any) {
+        ctx.ui.notify(`Pet error: ${err?.message || err}`, 'error');
+      }
     },
     async mute(ctx) {
       state.settings.muted = true;
