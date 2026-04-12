@@ -33,7 +33,7 @@ function widest(lines: string[]): number {
 
 function getSpriteDisplay(runtime: BuddyEditorRuntime): {
   visible: boolean;
-  spriteWidth: number;
+  displayWidth: number;
   lines: string[];
 } {
   const state = runtime.getState();
@@ -41,7 +41,7 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
   const visual = runtime.getVisualState();
 
   if (!buddy || state.settings.hidden) {
-    return { visible: false, spriteWidth: 0, lines: [] };
+    return { visible: false, displayWidth: 0, lines: [] };
   }
 
   const now = Date.now();
@@ -55,28 +55,27 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
   const spriteBodyWidth = widest(sprite);
   const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
   const nameVW = visibleWidth(nameLine);
-  // Layout width is sprite body only — don't inflate for name length
-  const spriteWidth = spriteBodyWidth;
-  // Center name: if shorter than sprite, add left padding; if longer, it extends right
-  const nameLeftPad = Math.max(0, Math.floor((spriteWidth - nameVW) / 2));
-  const centeredName = ' '.repeat(nameLeftPad) + nameLine;
+  // Display width = wider of sprite or name, no extra inflation
+  const displayWidth = Math.max(spriteBodyWidth, nameVW);
+  // Center sprite above the left-aligned name
+  const spriteLeftPad = Math.max(0, Math.floor((displayWidth - spriteBodyWidth) / 2));
 
   const showHearts = visual.heartsUntil > now;
-  const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
+  const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, displayWidth) : '';
   const spriteLines = [...sprite];
   let heartsInlined = false;
   if (heartsStr && spriteLines[0]?.trim() === '') {
-    spriteLines[0] = heartsStr.padEnd(spriteWidth);
+    spriteLines[0] = heartsStr.padEnd(displayWidth);
     heartsInlined = true;
   }
 
   const lines = [
-    ...(!heartsInlined && heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
-    ...spriteLines.map((l) => l.padEnd(spriteWidth)),
-    centeredName.padEnd(spriteWidth),
+    ...(!heartsInlined && heartsStr ? [heartsStr.padEnd(displayWidth)] : []),
+    ...spriteLines.map((l) => (' '.repeat(spriteLeftPad) + l.trimEnd()).padEnd(displayWidth)),
+    nameLine.padEnd(displayWidth),  // left-aligned
   ];
 
-  return { visible: true, spriteWidth, lines };
+  return { visible: true, displayWidth, lines };
 }
 
 /** Overlay component: sprite + name only, no bubble */
@@ -120,7 +119,7 @@ export class BuddyEditor extends CustomEditor {
     }
 
     const display = getSpriteDisplay(this.runtime);
-    const reservedWidth = 18;  // matches overlay width
+    const reservedWidth = display.displayWidth + 2;
     const editorWidth = Math.max(30, width - reservedWidth);
     const editorLines = super.render(editorWidth);
     const result = editorLines.map((l) => rpad(l, width));
@@ -165,7 +164,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
       overlay: true,
       overlayOptions: {
         anchor: 'bottom-right' as const,
-        width: 18,  // wide enough for any name + some centering room
+        width: getSpriteDisplay(runtime).displayWidth + 2,
         margin: { right: 1, bottom: 2 },
         nonCapturing: true,
         visible: (termWidth: number) => termWidth >= 60 && getSpriteDisplay(runtime).visible,
