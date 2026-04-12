@@ -142,7 +142,13 @@ export default function (pi: ExtensionAPI) {
         buddy.timesPetted = (buddy.timesPetted || 0) + 1;
         visual.animationState = 'petted';
         visual.heartsUntil = Date.now() + 2500;
-        const reaction = buddy.lastSaid || `*${buddy.name} looks delighted*`;
+        const petLines = [
+          `*${buddy.name} purrs*`, `*happy wiggles*`, `*nuzzles your cursor*`,
+          `*does a little dance*`, `*chirps contentedly*`, `Thanks, needed that!`,
+          `*tail wag*`, `Best human ever.`, `*blushes in ASCII*`,
+          `*vibrates with joy*`, `More pets please!`, `*sparkles*`,
+        ];
+        const reaction = petLines[Math.floor(Math.random() * petLines.length)]!;
         visual.bubbleText = reaction;
         visual.bubbleUntil = Date.now() + 4000;
         await save();
