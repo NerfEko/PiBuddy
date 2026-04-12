@@ -164,7 +164,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
       overlay: true,
       overlayOptions: {
         anchor: 'bottom-right' as const,
-        width: 14,
+        width: getSpriteDisplay(runtime).spriteWidth || 14,
         margin: { right: 1, bottom: 2 },
         nonCapturing: true,
         visible: (termWidth: number) => termWidth >= 60 && getSpriteDisplay(runtime).visible,
