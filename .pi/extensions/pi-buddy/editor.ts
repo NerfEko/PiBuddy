@@ -127,7 +127,7 @@ export class BuddyEditor extends CustomEditor {
     // Overlay the buddy panel onto the editor lines
     // Name line sits on the last editor line. Sprite extends ABOVE if needed.
     const result = [...editorLines];
-    const rightOffset = Math.max(4, Math.floor(width * 0.15));
+    const rightOffset = 0;
 
     // How many panel lines fit in the editor
     const fitsInEditor = Math.min(panelLines.length, result.length);
