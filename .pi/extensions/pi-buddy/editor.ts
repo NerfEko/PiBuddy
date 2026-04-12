@@ -129,11 +129,12 @@ export class BuddyEditor extends CustomEditor {
     const showBubble = visual.bubbleText && visual.bubbleUntil > now;
     const bubbleLine = showBubble ? buildBubbleLine(visual.bubbleText!) : '';
 
-    // Sprite overflow lines — put bubble on the FIRST overflow line, to its left
+    // Sprite overflow lines — put bubble on the SECOND overflow line (or first if only one)
+    const bubbleTargetLine = overflowCount >= 2 ? 1 : 0;
     for (let i = 0; i < overflowCount; i++) {
       const spritePart = panelLines[i]!;
       const pad = Math.max(0, width - spritePart.length - rightOffset);
-      if (i === 0 && bubbleLine) {
+      if (i === bubbleTargetLine && bubbleLine) {
         // Place bubble text to the left, sharing this line
         const spriteRight = ' '.repeat(pad) + spritePart;
         const available = pad - 1;
