@@ -292,7 +292,15 @@ export default function (pi: ExtensionAPI) {
     const assistantText = Array.isArray(event.message?.content)
       ? event.message.content.filter((part: any) => part.type === 'text').map((part: any) => part.text).join(' ')
       : '';
-    const summary = classifyTurn({ assistantText, toolResults: event.toolResults ?? [] });
+    // Extract tool args from the assistant message's tool calls
+    const toolCalls = Array.isArray(event.message?.content)
+      ? event.message.content.filter((part: any) => part.type === 'toolCall')
+      : [];
+    const toolResultsWithArgs = (event.toolResults ?? []).map((tr: any) => {
+      const call = toolCalls.find((tc: any) => tc.id === tr.toolCallId);
+      return { ...tr, args: call?.arguments };
+    });
+    const summary = classifyTurn({ assistantText, toolResults: toolResultsWithArgs });
     const reaction = await maybeGenerateReaction(ctx, state, buddy, summary, completedTurns, lastReactionTurn, lastReactionAt);
     if (reaction) {
       buddy.lastSaid = reaction.text;

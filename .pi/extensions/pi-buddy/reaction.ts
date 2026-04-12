@@ -61,14 +61,17 @@ export async function maybeGenerateReaction(
 
   try {
     const high = getHighestStat(buddy.stats);
-    const prompt = [
-      `You are ${buddy.name}, a ${buddy.rarity} ${buddy.species} coding companion.`,
-      `Your strongest trait is ${high.name}.`,
-      `The user's assistant just did: ${summary.turnKind}`,
-      `Summary: ${summary.assistantSummary}`,
-      `React in character as ${buddy.name} with one short playful line about what just happened.`,
-      `Under 50 chars. No quotes. No markdown. Just the line.`,
-    ].join('\n');
+    const contextParts = [
+      `You are ${buddy.name}, a ${buddy.rarity} ${buddy.species}.`,
+      `Personality: ${buddy.personality}`,
+      `Strongest trait: ${high.name}.`,
+      `What just happened: ${summary.turnKind}`,
+    ];
+    if (summary.filesChanged.length > 0) contextParts.push(`Files touched: ${summary.filesChanged.join(', ')}`);
+    if (summary.errorHint) contextParts.push(`Error: ${summary.errorHint}`);
+    if (summary.assistantSummary) contextParts.push(`Context: ${summary.assistantSummary}`);
+    contextParts.push(`React in character with one short playful line. Under 50 chars. No quotes. No markdown.`);
+    const prompt = contextParts.join('\n');
 
     const userMessage: UserMessage = {
       role: 'user',
