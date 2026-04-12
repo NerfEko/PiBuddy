@@ -134,10 +134,18 @@ export class BuddyEditor extends CustomEditor {
 
     // How many panel lines fit in the editor
     const fitsInEditor = Math.min(panelLines.length, result.length);
-    // No cap on overflow — let the full sprite show, overlapping chat lines above
     const rawOverflow = panelLines.length - fitsInEditor;
-    const overflowCount = showBubble ? Math.min(rawOverflow, 3) : rawOverflow;
-    const panelShift = rawOverflow - overflowCount;
+
+    // Skip blank sprite lines at the top of overflow — they just create an empty left gap
+    // Only allow non-blank overflow lines (or bubble lines)
+    let overflowStart = 0;
+    while (overflowStart < rawOverflow && panelLines[overflowStart]!.trim() === '') {
+      overflowStart++;
+    }
+    const trimmedOverflow = rawOverflow - overflowStart;
+    // When bubble active: up to 3 lines; when idle: all non-blank overflow lines
+    const overflowCount = showBubble ? Math.min(trimmedOverflow, 3) : trimmedOverflow;
+    const panelShift = overflowStart + (trimmedOverflow - overflowCount);
 
     // Paint what fits into editor lines (bottom-aligned), skipping top lines if capped
     for (let i = 0; i < fitsInEditor; i++) {
