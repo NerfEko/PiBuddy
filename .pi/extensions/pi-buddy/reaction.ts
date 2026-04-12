@@ -1,4 +1,4 @@
-import { complete, type UserMessage } from '@mariozechner/pi-ai';
+import { complete, type Model, type Api, type UserMessage } from '@mariozechner/pi-ai';
 import type { ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { getHighestStat, getLowestStat } from './roll.ts';
 import { canUseModelReaction, recordModelUsage, TOKEN_POLICY } from './token-policy.ts';
@@ -6,6 +6,24 @@ import type { BuddyRecord, BuddyState } from './state.ts';
 import { classifyTurn, generateLocalReaction, type TurnSummary } from './reaction-core.ts';
 
 export { classifyTurn, generateLocalReaction } from './reaction-core.ts';
+
+const CHEAP_MODEL_IDS = [
+  ['openai', 'gpt-4o'],
+] as const;
+
+async function findCheapModel(ctx: ExtensionContext): Promise<{ model: Model<Api>; apiKey: string; headers?: Record<string, string> } | null> {
+  for (const [provider, id] of CHEAP_MODEL_IDS) {
+    const model = ctx.modelRegistry.find(provider, id);
+    if (!model) continue;
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+    if (auth.ok && auth.apiKey) return { model, apiKey: auth.apiKey, headers: auth.headers };
+  }
+  if (ctx.model) {
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
+    if (auth.ok && auth.apiKey) return { model: ctx.model, apiKey: auth.apiKey, headers: auth.headers };
+  }
+  return null;
+}
 
 export async function maybeGenerateReaction(
   ctx: ExtensionContext,
@@ -20,12 +38,12 @@ export async function maybeGenerateReaction(
   if (state.settings.reactionMode === 'off') return null;
 
   const local = generateLocalReaction(buddy, summary);
-  if (state.settings.reactionMode !== 'cheap-model' || !ctx.model) {
+  if (state.settings.reactionMode !== 'cheap-model') {
     return Math.random() < 0.3 ? { text: local, source: 'local' } : null;
   }
 
-  const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-  if (!auth.ok || !auth.apiKey) return Math.random() < 0.3 ? { text: local, source: 'local' } : null;
+  const cheap = await findCheapModel(ctx);
+  if (!cheap) return Math.random() < 0.3 ? { text: local, source: 'local' } : null;
   if (
     !canUseModelReaction({
       state,
@@ -57,9 +75,9 @@ export async function maybeGenerateReaction(
     };
 
     const response = await complete(
-      ctx.model,
+      cheap.model,
       { systemPrompt: 'You are a tiny coding buddy reacting with one short line.', messages: [userMessage] },
-      { apiKey: auth.apiKey, headers: auth.headers, signal: ctx.signal, maxTokens: TOKEN_POLICY.reactionOutputHardCap },
+      { apiKey: cheap.apiKey, headers: cheap.headers, signal: ctx.signal, maxTokens: TOKEN_POLICY.reactionOutputHardCap },
     );
 
     if (response.stopReason === 'aborted' || response.stopReason === 'error') return { text: local, source: 'local' };

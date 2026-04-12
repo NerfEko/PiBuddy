@@ -1,9 +1,29 @@
-import { complete, type UserMessage } from '@mariozechner/pi-ai';
+import { complete, type Model, type Api, type UserMessage } from '@mariozechner/pi-ai';
 import type { ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { FALLBACK_PERSONALITIES } from './personalities.ts';
 import { getHighestStat, getLowestStat } from './roll.ts';
 import { canUseModelSoul, recordModelUsage, TOKEN_POLICY } from './token-policy.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
+
+// Cheap models to try, in preference order
+const CHEAP_MODEL_IDS = [
+  ['openai', 'gpt-4o'],
+] as const;
+
+async function findCheapModel(ctx: ExtensionContext): Promise<{ model: Model<Api>; apiKey: string; headers?: Record<string, string> } | null> {
+  for (const [provider, id] of CHEAP_MODEL_IDS) {
+    const model = ctx.modelRegistry.find(provider, id);
+    if (!model) continue;
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+    if (auth.ok && auth.apiKey) return { model, apiKey: auth.apiKey, headers: auth.headers };
+  }
+  // Fall back to whatever model is active
+  if (ctx.model) {
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
+    if (auth.ok && auth.apiKey) return { model: ctx.model, apiKey: auth.apiKey, headers: auth.headers };
+  }
+  return null;
+}
 
 function fallbackNameForBuddy(buddy: Pick<BuddyRecord, 'species' | 'rarity' | 'shiny'>): string {
   const rarityWord: Record<BuddyRecord['rarity'], string> = {
@@ -32,11 +52,8 @@ export async function generateSoul(
   buddy: Pick<BuddyRecord, 'species' | 'rarity' | 'shiny' | 'stats'>,
 ): Promise<{ name: string; personality: string; soulSource: 'model' | 'fallback' }> {
   const fallback = generateFallbackSoul(buddy);
-  if (!ctx.model) return fallback;
-
-  const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-  const hasModel = auth.ok && !!auth.apiKey;
-  if (!canUseModelSoul(state, hasModel)) return fallback;
+  const cheap = await findCheapModel(ctx);
+  if (!canUseModelSoul(state, !!cheap)) return fallback;
 
   try {
     const high = getHighestStat(buddy.stats);
@@ -61,14 +78,14 @@ export async function generateSoul(
     };
 
     const response = await complete(
-      ctx.model,
+      cheap!.model,
       {
         systemPrompt: 'You create tiny pet companion identities. Be concise and playful.',
         messages: [userMessage],
       },
       {
-        apiKey: auth.apiKey!,
-        headers: auth.headers,
+        apiKey: cheap!.apiKey,
+        headers: cheap!.headers,
         signal: ctx.signal,
         maxTokens: TOKEN_POLICY.soulGenerationHardCap,
       },
