@@ -119,17 +119,19 @@ export class BuddyEditor extends CustomEditor {
     const editorLines = super.render(editorWidth);
     const result = editorLines.map((l) => rpad(l, width));
 
-    // If bubble is active, prepend a single | text | line above the editor
+    // Always include a bubble line above the editor (empty when idle)
+    // so the layout never shifts when buddy talks
     const now = Date.now();
     const showBubble = visual.bubbleText && visual.bubbleUntil > now;
     if (showBubble) {
-      const maxBubbleLen = width - reservedWidth - 4; // room for "| " and " |"
+      const maxBubbleLen = width - reservedWidth - 4;
       let text = visual.bubbleText!;
       if (text.length > maxBubbleLen) text = text.slice(0, Math.max(1, maxBubbleLen - 1)) + '…';
       const bubbleLine = `| ${text} |`;
-      // Right-align the bubble line to sit just left of the sprite area
       const padded = rpad(' '.repeat(Math.max(0, width - reservedWidth - visibleWidth(bubbleLine))) + bubbleLine, width);
       result.unshift(padded);
+    } else {
+      result.unshift(rpad('', width));
     }
 
     return result;
