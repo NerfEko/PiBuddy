@@ -4,7 +4,7 @@ export const TOKEN_POLICY = {
   soulGenerationTargetOutput: 120,
   soulGenerationHardCap: 220,
   reactionOutputTarget: 24,
-  reactionOutputHardCap: 48,
+  reactionOutputHardCap: 96,
   reactionInputBudget: 160,
   maxBuddyModelCallsPerSession: 50,
   maxReactionCallsPerSession: 30,

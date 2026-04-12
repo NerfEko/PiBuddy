@@ -41,17 +41,21 @@ export async function maybeGenerateReaction(
 
   try {
     const high = getHighestStat(buddy.stats);
+    const low = getLowestStat(buddy.stats);
     const contextParts = [
-      `You are ${buddy.name}, a ${buddy.rarity} ${buddy.species}.`,
+      `You are ${buddy.name}, a ${buddy.rarity} ${buddy.species} companion.`,
       `Personality: ${buddy.personality}`,
-      `Strongest trait: ${high.name}.`,
-      `What just happened: ${summary.turnKind}`,
+      `Your strongest stat is ${high.name} (${high.value}), weakest is ${low.name} (${low.value}).`,
+      `What just happened: ${summary.turnKind}.`,
     ];
-    if (summary.filesChanged.length > 0) contextParts.push(`Files touched: ${summary.filesChanged.join(', ')}`);
-    if (summary.errorHint) contextParts.push(`Error: ${summary.errorHint}`);
-    if (summary.assistantSummary) contextParts.push(`Context: ${summary.assistantSummary}`);
-    contextParts.push(`React in character with one short playful line. Under 50 chars. No quotes. No markdown.`);
+    if (summary.filesChanged.length > 0) contextParts.push(`Files changed: ${summary.filesChanged.slice(0, 3).join(', ')}.`);
+    if (summary.errorHint) contextParts.push(`There was an error: ${summary.errorHint}.`);
+    if (summary.assistantSummary) contextParts.push(`What the AI said: ${summary.assistantSummary.slice(0, 200)}.`);
+    if (buddy.lastSaid) contextParts.push(`Your last reaction was: "${buddy.lastSaid}" — say something different.`);
+    contextParts.push(`React as ${buddy.name} in one short line that reflects your personality. Max 80 chars. No quotes. No markdown.`);
     const prompt = contextParts.join('\n');
+
+    const sysPrompt = `You are ${buddy.name}, a ${buddy.species} with this personality: ${buddy.personality} You watch a developer work and occasionally react in character. Be specific to what just happened. Stay in character.`;
 
     const userMessage: UserMessage = {
       role: 'user',
@@ -61,7 +65,7 @@ export async function maybeGenerateReaction(
 
     const response = await complete(
       cheap.model,
-      { systemPrompt: 'You are a tiny coding buddy reacting with one short line.', messages: [userMessage] },
+      { systemPrompt: sysPrompt, messages: [userMessage] },
       { apiKey: cheap.apiKey, headers: cheap.headers, signal: ctx.signal, maxTokens: TOKEN_POLICY.reactionOutputHardCap },
     );
 
@@ -71,7 +75,7 @@ export async function maybeGenerateReaction(
       .map((part) => part.text)
       .join(' ')
       .trim()
-      .slice(0, 90);
+      .slice(0, 120);
     recordModelUsage(state, response.usage.input || 0, response.usage.output || 0, 'reaction');
     return text ? { text, source: 'model' } : { text: local, source: 'local' };
   } catch {
