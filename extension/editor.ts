@@ -1,7 +1,7 @@
 import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import type { ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { visibleWidth } from '@mariozechner/pi-tui';
-import { IDLE_SEQUENCE, SPRITES } from './constants.ts';
+import { IDLE_SEQUENCE } from './constants.ts';
 import { renderSprite } from './sprites.ts';
 import { starsForRarity } from './theme.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
@@ -132,34 +132,12 @@ export class BuddyEditor extends CustomEditor {
     const result = editorLines.map(l => rpad(l, width));
     const rightOffset = 0;
 
-    // Use the minimum visible overflow across all frames so animation never adds/removes rows.
-    // Taller frames get clipped from the top instead of making the whole layout jump.
-    const allFrames = SPRITES[buddy.species];
-    let minStableOverflow = Number.POSITIVE_INFINITY;
-    for (let idx = 0; idx < allFrames.length; idx++) {
-      const frLines = renderSprite(buddy.species, idx, buddy.eye, buddy.hat, false);
-      let start = 0;
-      while (start < frLines.length && frLines[start]!.trim() === '') start++;
-      const overflow = Math.max(0, (frLines.length + 1) - result.length); // +1 for name line
-      const nonBlankOverflow = Math.max(0, overflow - start);
-      minStableOverflow = Math.min(minStableOverflow, nonBlankOverflow);
-    }
-    if (!Number.isFinite(minStableOverflow)) minStableOverflow = 0;
-
-    // How many panel lines fit in the editor
+    // Never add extra rows above the editor. Clip from the top instead.
+    // This keeps chat/input layout stable while the buddy animates.
     const fitsInEditor = Math.min(panelLines.length, result.length);
-    const rawOverflow = panelLines.length - fitsInEditor;
-
-    // Skip blank sprite lines at the top of overflow
-    let overflowStart = 0;
-    while (overflowStart < rawOverflow && panelLines[overflowStart]!.trim() === '') {
-      overflowStart++;
-    }
-    const trimmedOverflow = rawOverflow - overflowStart;
-    // Idle animation keeps a fixed row count; extra-tall frames are clipped from the top.
-    const overflowCount = showBubble ? Math.max(minStableOverflow, Math.min(trimmedOverflow, 3)) : minStableOverflow;
-    const actualOverflow = Math.min(overflowCount, trimmedOverflow);
-    const panelShift = rawOverflow - actualOverflow;
+    const rawOverflow = Math.max(0, panelLines.length - fitsInEditor);
+    const actualOverflow = 0;
+    const panelShift = rawOverflow;
 
     // Paint what fits into editor lines (bottom-aligned), skipping top lines if capped
     for (let i = 0; i < fitsInEditor; i++) {
