@@ -55,8 +55,11 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
   const spriteBodyWidth = widest(sprite);
   const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
   const nameVW = visibleWidth(nameLine);
-  // displayWidth gives 2 chars of margin on each side so name centering is visible
-  const spriteWidth = Math.max(spriteBodyWidth, nameVW + 4);
+  // Layout width is sprite body only — don't inflate for name length
+  const spriteWidth = spriteBodyWidth;
+  // Center name: if shorter than sprite, add left padding; if longer, it extends right
+  const nameLeftPad = Math.max(0, Math.floor((spriteWidth - nameVW) / 2));
+  const centeredName = ' '.repeat(nameLeftPad) + nameLine;
 
   const showHearts = visual.heartsUntil > now;
   const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
@@ -66,10 +69,6 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
     spriteLines[0] = heartsStr.padEnd(spriteWidth);
     heartsInlined = true;
   }
-
-  // Center name under the sprite body — equal blank space on each side
-  const nameLeftPad = Math.max(0, Math.floor((spriteWidth - nameVW) / 2));
-  const centeredName = ' '.repeat(nameLeftPad) + nameLine;
 
   const lines = [
     ...(!heartsInlined && heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
@@ -121,7 +120,7 @@ export class BuddyEditor extends CustomEditor {
     }
 
     const display = getSpriteDisplay(this.runtime);
-    const reservedWidth = display.spriteWidth + 2;
+    const reservedWidth = 18;  // matches overlay width
     const editorWidth = Math.max(30, width - reservedWidth);
     const editorLines = super.render(editorWidth);
     const result = editorLines.map((l) => rpad(l, width));
@@ -166,7 +165,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
       overlay: true,
       overlayOptions: {
         anchor: 'bottom-right' as const,
-        width: getSpriteDisplay(runtime).spriteWidth + 2,
+        width: 18,  // wide enough for any name + some centering room
         margin: { right: 1, bottom: 2 },
         nonCapturing: true,
         visible: (termWidth: number) => termWidth >= 60 && getSpriteDisplay(runtime).visible,
