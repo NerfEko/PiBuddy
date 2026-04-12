@@ -52,8 +52,11 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
   const frame = frameToken < 0 ? 0 : frameToken;
 
   const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
+  const spriteBodyWidth = widest(sprite);
   const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
-  const spriteWidth = Math.max(widest(sprite), visibleWidth(nameLine));
+  const nameVW = visibleWidth(nameLine);
+  // displayWidth gives 2 chars of margin on each side so name centering is visible
+  const spriteWidth = Math.max(spriteBodyWidth, nameVW + 4);
 
   const showHearts = visual.heartsUntil > now;
   const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
@@ -64,8 +67,7 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
     heartsInlined = true;
   }
 
-  // Center name under the sprite
-  const nameVW = visibleWidth(nameLine);
+  // Center name under the sprite body — equal blank space on each side
   const nameLeftPad = Math.max(0, Math.floor((spriteWidth - nameVW) / 2));
   const centeredName = ' '.repeat(nameLeftPad) + nameLine;
 
@@ -164,7 +166,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
       overlay: true,
       overlayOptions: {
         anchor: 'bottom-right' as const,
-        width: getSpriteDisplay(runtime).spriteWidth || 14,
+        width: getSpriteDisplay(runtime).spriteWidth + 2,
         margin: { right: 1, bottom: 2 },
         nonCapturing: true,
         visible: (termWidth: number) => termWidth >= 60 && getSpriteDisplay(runtime).visible,
