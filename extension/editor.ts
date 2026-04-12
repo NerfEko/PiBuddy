@@ -20,10 +20,18 @@ export interface BuddyEditorRuntime {
   getVisualState(): BuddyVisualState;
 }
 
-/** Build a single-line speech bubble */
+/** Build a speech bubble */
 function buildBubbleLine(text: string): string {
   if (!text) return '';
-  return `< ${text} >`;
+  return `| ${text} |`;
+}
+
+function buildBubbleTop(text: string): string {
+  return `.-${'-'.repeat(text.length + 2)}-.`;
+}
+
+function buildBubbleBot(text: string): string {
+  return `'-${'-'.repeat(text.length + 2)}-'`;
 }
 
 /** Right-pad a string that may have ANSI to a visible width */
@@ -126,10 +134,9 @@ export class BuddyEditor extends CustomEditor {
 
     // How many panel lines fit in the editor
     const fitsInEditor = Math.min(panelLines.length, result.length);
-    // Cap overflow to 2 lines max to avoid large empty gaps above the input
+    // Cap overflow to 1 line max — one combined line above the editor
     const rawOverflow = panelLines.length - fitsInEditor;
-    const overflowCount = Math.min(rawOverflow, 2);
-    // If we're capping, shift which panel lines paint into the editor
+    const overflowCount = Math.min(rawOverflow, 1);
     const panelShift = rawOverflow - overflowCount;
 
     // Paint what fits into editor lines (bottom-aligned), skipping top lines if capped
@@ -141,44 +148,41 @@ export class BuddyEditor extends CustomEditor {
       }
     }
 
+    // Overlay bubble borders onto editor top/bottom border lines
+    if (bubbleText) {
+      const spriteStart = width - spriteWidth - rightOffset;
+      const available = spriteStart - 1;
+      // Top border on first editor line
+      if (result.length > 0 && available > bubbleTopLine.length) {
+        const bPad = available - bubbleTopLine.length;
+        result[0] = overlayRight(' '.repeat(bPad) + bubbleTopLine + ' '.repeat(spriteWidth + 1), result[0]!, width, rightOffset);
+      }
+      // Bottom border on last editor line
+      if (result.length > 2 && available > bubbleBotLine.length) {
+        const bPad = available - bubbleBotLine.length;
+        const last = result.length - 1;
+        result[last] = overlayRight(' '.repeat(bPad) + bubbleBotLine + ' '.repeat(spriteWidth + 1), result[last]!, width, rightOffset);
+      }
+    }
+
     // Prepend overflow lines above the editor
     const aboveLines: string[] = [];
     const bubbleText = showBubble ? visual.bubbleText! : '';
-    const bubbleContent = bubbleText ? `| ${bubbleText} |` : '';
-    const bubbleW = bubbleText ? bubbleText.length + 4 : 0;
-    const bubbleTop = bubbleText ? `'${'-'.repeat(bubbleW - 2)}'` : '';
-    const bubbleBot = bubbleText ? `.${'-'.repeat(bubbleW - 2)}.` : '';
+    const bubbleContent = bubbleText ? buildBubbleLine(bubbleText) : '';
+    const bubbleTopLine = bubbleText ? buildBubbleTop(bubbleText) : '';
+    const bubbleBotLine = bubbleText ? buildBubbleBot(bubbleText) : '';
 
+    // One overflow line above the editor — bubble text to the left, sprite line to the right
     for (let i = 0; i < overflowCount; i++) {
       const spritePart = panelLines[panelShift + i]!;
       const pad = Math.max(0, width - spritePart.length - rightOffset);
-
-      if (bubbleContent && i === 0 && overflowCount >= 3) {
-        // Top border of bubble on line above text
-        const available = pad - 1;
-        if (available > bubbleBot.length) {
-          const bPad = available - bubbleBot.length;
-          aboveLines.push(' '.repeat(bPad) + bubbleBot + ' ' + spritePart.padEnd(spriteWidth));
-        } else {
-          aboveLines.push(' '.repeat(pad) + spritePart);
-        }
-      } else if (bubbleContent && i === 1) {
-        // Bubble text line
+      if (bubbleContent) {
         const available = pad - 1;
         if (available > bubbleContent.length) {
           const bPad = available - bubbleContent.length;
           aboveLines.push(' '.repeat(bPad) + bubbleContent + ' ' + spritePart.padEnd(spriteWidth));
         } else {
           aboveLines.push(bubbleContent.slice(0, Math.max(0, available)) + ' ' + spritePart.padEnd(spriteWidth));
-        }
-      } else if (bubbleContent && i === 2 && overflowCount >= 3) {
-        // Bottom border of bubble
-        const available = pad - 1;
-        if (available > bubbleTop.length) {
-          const bPad = available - bubbleTop.length;
-          aboveLines.push(' '.repeat(bPad) + bubbleTop + ' ' + spritePart.padEnd(spriteWidth));
-        } else {
-          aboveLines.push(' '.repeat(pad) + spritePart);
         }
       } else {
         aboveLines.push(' '.repeat(pad) + spritePart);
