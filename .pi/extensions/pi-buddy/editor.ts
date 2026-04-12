@@ -100,16 +100,10 @@ export class BuddyEditor extends CustomEditor {
     const showHearts = visual.heartsUntil > now;
     const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
 
-    // Skip blank top sprite lines to save vertical space
-    const trimmedSprite = [...sprite];
-    while (trimmedSprite.length > 1 && trimmedSprite[0]!.trim() === '') {
-      trimmedSprite.shift();
-    }
-
     // Hearts always above sprite when active
     const panelLines = [
       ...(heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
-      ...trimmedSprite,
+      ...sprite,
       nameLine.padEnd(spriteWidth),
     ];
 
@@ -145,7 +139,7 @@ export class BuddyEditor extends CustomEditor {
     for (let i = 0; i < overflowCount; i++) {
       const spritePart = panelLines[i]!;
       const pad = Math.max(0, width - spritePart.length - rightOffset);
-      if (i === 0 && bubbleText) {
+      if (i === 1 && bubbleText) {
         // Place bubble text to the left, sharing this line
         const spriteRight = ' '.repeat(pad) + spritePart;
         const available = pad - 1;
