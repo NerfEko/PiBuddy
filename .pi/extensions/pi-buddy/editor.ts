@@ -126,12 +126,15 @@ export class BuddyEditor extends CustomEditor {
 
     // How many panel lines fit in the editor
     const fitsInEditor = Math.min(panelLines.length, result.length);
-    // Lines that overflow above the editor
-    const overflowCount = panelLines.length - fitsInEditor;
+    // Cap overflow to 2 lines max to avoid large empty gaps above the input
+    const rawOverflow = panelLines.length - fitsInEditor;
+    const overflowCount = Math.min(rawOverflow, 2);
+    // If we're capping, shift which panel lines paint into the editor
+    const panelShift = rawOverflow - overflowCount;
 
-    // Paint what fits into editor lines (bottom-aligned)
+    // Paint what fits into editor lines (bottom-aligned), skipping top lines if capped
     for (let i = 0; i < fitsInEditor; i++) {
-      const panelIdx = overflowCount + i;
+      const panelIdx = overflowCount + panelShift + i;
       const lineIdx = result.length - fitsInEditor + i;
       if (lineIdx >= 0 && lineIdx < result.length) {
         result[lineIdx] = overlayRight(result[lineIdx]!, panelLines[panelIdx]!, width, rightOffset);
@@ -147,7 +150,7 @@ export class BuddyEditor extends CustomEditor {
     const bubbleBot = bubbleText ? `.${'-'.repeat(bubbleW - 2)}.` : '';
 
     for (let i = 0; i < overflowCount; i++) {
-      const spritePart = panelLines[i]!;
+      const spritePart = panelLines[panelShift + i]!;
       const pad = Math.max(0, width - spritePart.length - rightOffset);
 
       if (bubbleContent && i === 0 && overflowCount >= 3) {
