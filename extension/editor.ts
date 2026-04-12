@@ -28,6 +28,14 @@ function rpad(str: string, width: number): string {
   return str + ' '.repeat(width - vw);
 }
 
+function widest(lines: string[]): number {
+  return lines.length > 0 ? Math.max(...lines.map((line) => visibleWidth(line))) : 0;
+}
+
+function getBubbleRenderWidth(text: string, spriteWidth: number): number {
+  return Math.max(24, Math.min(34, Math.max(text.length + 4, spriteWidth + 14)));
+}
+
 function getBuddyDisplay(runtime: BuddyEditorRuntime): {
   visible: boolean;
   reservedWidth: number;
@@ -51,7 +59,7 @@ function getBuddyDisplay(runtime: BuddyEditorRuntime): {
 
   const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
   const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
-  const spriteWidth = Math.max(...sprite.map(line => line.length), nameLine.length);
+  const spriteWidth = Math.max(widest(sprite), visibleWidth(nameLine));
   const showBubble = !!(visual.bubbleText && visual.bubbleUntil > now);
   const showHearts = visual.heartsUntil > now;
   const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
@@ -71,9 +79,9 @@ function getBuddyDisplay(runtime: BuddyEditorRuntime): {
 
   const bubbleText = showBubble ? visual.bubbleText! : '';
   const bubbleLines = bubbleText
-    ? renderReactionBubble(bubbleText, Math.max(18, Math.min(28, spriteWidth + 12)))
+    ? renderReactionBubble(bubbleText, getBubbleRenderWidth(bubbleText, spriteWidth))
     : [];
-  const bubbleWidth = bubbleLines.length > 0 ? Math.max(...bubbleLines.map(line => line.length)) : 0;
+  const bubbleWidth = widest(bubbleLines);
 
   const totalLines = Math.max(panelLines.length, bubbleLines.length);
   const lines: string[] = [];
