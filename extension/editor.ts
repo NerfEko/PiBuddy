@@ -28,6 +28,12 @@ function rpad(str: string, width: number): string {
   return str + ' '.repeat(width - vw);
 }
 
+function lpad(str: string, width: number): string {
+  const vw = visibleWidth(str);
+  if (vw >= width) return str.slice(Math.max(0, str.length - width));
+  return ' '.repeat(width - vw) + str;
+}
+
 function widest(lines: string[]): number {
   return lines.length > 0 ? Math.max(...lines.map((line) => visibleWidth(line))) : 0;
 }
@@ -105,10 +111,7 @@ class BuddyOverlayComponent {
   render(width: number): string[] {
     const display = getBuddyDisplay(this.runtime);
     if (!display.visible) return [];
-    return display.lines.map(line => {
-      if (visibleWidth(line) > width) return line.slice(0, width);
-      return line;
-    });
+    return display.lines.map(line => lpad(line, width));
   }
 
   invalidate(): void {}
