@@ -122,8 +122,30 @@ export class BuddyEditor extends CustomEditor {
     const spriteWidth = Math.max(...sprite.map(l => l.length));
     const hearts = visual.heartsUntil > now ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
 
-    // Buddy panel lines (hearts on top, then sprite, then name)
-    const panelLines = [...(hearts ? [hearts.padEnd(spriteWidth)] : []), ...sprite, nameLine.padEnd(spriteWidth)];
+    // Build bubble to the LEFT of the sprite if active
+    const showBubble = visual.bubbleText && visual.bubbleUntil > now;
+    const bubbleMaxW = Math.min(34, width - spriteWidth - 4);
+    const bubble = showBubble ? buildBubbleLines(visual.bubbleText!, bubbleMaxW) : [];
+    const bubbleWidth = bubble.length > 0 ? Math.max(...bubble.map(l => l.length)) : 0;
+
+    // Build sprite column (hearts on top, sprite, name)
+    const spriteCol = [...(hearts ? [hearts.padEnd(spriteWidth)] : []), ...sprite, nameLine.padEnd(spriteWidth)];
+
+    // Merge bubble and sprite side by side, bottom-aligned to sprite
+    const mergedHeight = Math.max(spriteCol.length, bubble.length);
+    const bubbleOffset = mergedHeight - bubble.length;
+    const gapW = bubble.length > 0 ? 1 : 0;
+    const panelLines: string[] = [];
+    for (let i = 0; i < mergedHeight; i++) {
+      const sLine = (spriteCol[i] ?? '').padEnd(spriteWidth);
+      const bIdx = i - bubbleOffset;
+      if (bubble.length > 0) {
+        const bLine = bIdx >= 0 && bIdx < bubble.length ? bubble[bIdx]!.padEnd(bubbleWidth) : ' '.repeat(bubbleWidth);
+        panelLines.push(bLine + ' '.repeat(gapW) + sLine);
+      } else {
+        panelLines.push(sLine);
+      }
+    }
 
     // Overlay the buddy panel onto the editor lines
     // Name line sits on the last editor line. Sprite extends ABOVE if needed.
@@ -172,64 +194,4 @@ export function clearBuddyEditor(ctx: any): void {
   if (ctx.hasUI) {
     ctx.ui.setEditorComponent(undefined);
   }
-  dismissBubble();
-}
-
-let bubbleHandle: any = null;
-let bubbleTimer: ReturnType<typeof setInterval> | undefined;
-
-function dismissBubble(): void {
-  if (bubbleHandle) {
-    try { bubbleHandle.hide(); } catch {}
-    bubbleHandle = null;
-  }
-  if (bubbleTimer) {
-    clearInterval(bubbleTimer);
-    bubbleTimer = undefined;
-  }
-}
-
-export function showBubbleOverlay(ctx: ExtensionContext, runtime: BuddyEditorRuntime): void {
-  if (!ctx.hasUI) return;
-  dismissBubble();
-
-  ctx.ui.custom<void>(
-    (tui, _theme, _kb, _done) => {
-      const component = {
-        render(width: number): string[] {
-          const visual = runtime.getVisualState();
-          if (!visual.bubbleText || visual.bubbleUntil <= Date.now()) return [''];
-          const lines = buildBubbleLines(visual.bubbleText, Math.min(width, 34));
-          // Right-align within the overlay
-          return lines.map(l => {
-            const pad = Math.max(0, width - l.length);
-            return ' '.repeat(pad) + l;
-          });
-        },
-        invalidate() {},
-      };
-      bubbleTimer = setInterval(() => {
-        const visual = runtime.getVisualState();
-        if (!visual.bubbleText || visual.bubbleUntil <= Date.now()) {
-          dismissBubble();
-          return;
-        }
-        tui.requestRender();
-      }, 500);
-      return component;
-    },
-    {
-      overlay: true,
-      overlayOptions: {
-        anchor: 'bottom-right',
-        width: 36,
-        maxHeight: '20%',
-        margin: { bottom: 8, right: 0, top: 0, left: 0 },
-        nonCapturing: true,
-      },
-      onHandle: (handle: any) => {
-        bubbleHandle = handle;
-      },
-    },
-  );
 }
