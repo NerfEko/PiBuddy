@@ -143,19 +143,10 @@ export class BuddyEditor extends CustomEditor {
       }
     }
 
-    // Prepend overflow lines above the editor (sprite top + optional bubble)
+    // Prepend overflow lines above the editor (just sprite top, NO bubble here)
     const aboveLines: string[] = [];
 
-    // Bubble goes first (above everything)
-    if (visual.bubbleText && visual.bubbleUntil > now) {
-      const bubbleLines = buildBubbleLines(visual.bubbleText, 34);
-      for (const line of bubbleLines) {
-        const pad = Math.max(0, width - line.length - rightOffset);
-        aboveLines.push(' '.repeat(pad) + line);
-      }
-    }
-
-    // Then sprite overflow lines
+    // Sprite overflow lines only
     for (let i = 0; i < overflowCount; i++) {
       const pad = Math.max(0, width - panelLines[i]!.length - rightOffset);
       aboveLines.push(' '.repeat(pad) + panelLines[i]!);
@@ -180,4 +171,59 @@ export function clearBuddyEditor(ctx: any): void {
   if (ctx.hasUI) {
     ctx.ui.setEditorComponent(undefined);
   }
+  dismissBubble();
+}
+
+let bubbleHandle: any = null;
+let bubbleTimer: ReturnType<typeof setInterval> | undefined;
+
+function dismissBubble(): void {
+  if (bubbleHandle) {
+    try { bubbleHandle.hide(); } catch {}
+    bubbleHandle = null;
+  }
+  if (bubbleTimer) {
+    clearInterval(bubbleTimer);
+    bubbleTimer = undefined;
+  }
+}
+
+export function showBubbleOverlay(ctx: ExtensionContext, runtime: BuddyEditorRuntime): void {
+  if (!ctx.hasUI) return;
+  dismissBubble();
+
+  ctx.ui.custom<void>(
+    (tui, _theme, _kb, _done) => {
+      const component = {
+        render(width: number): string[] {
+          const visual = runtime.getVisualState();
+          if (!visual.bubbleText || visual.bubbleUntil <= Date.now()) return [''];
+          return buildBubbleLines(visual.bubbleText, Math.min(width, 34));
+        },
+        invalidate() {},
+      };
+      bubbleTimer = setInterval(() => {
+        const visual = runtime.getVisualState();
+        if (!visual.bubbleText || visual.bubbleUntil <= Date.now()) {
+          dismissBubble();
+          return;
+        }
+        tui.requestRender();
+      }, 500);
+      return component;
+    },
+    {
+      overlay: true,
+      overlayOptions: {
+        anchor: 'bottom-right',
+        width: 36,
+        maxHeight: '20%',
+        margin: { bottom: 10, right: 1, top: 0, left: 0 },
+        nonCapturing: true,
+      },
+      onHandle: (handle: any) => {
+        bubbleHandle = handle;
+      },
+    },
+  );
 }
