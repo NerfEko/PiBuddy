@@ -35,13 +35,12 @@ test('local reaction stays short', () => {
 
 test('model reaction gate enforces cooldown and budgets', () => {
   const state = createDefaultState();
-  state.settings.reactionMode = 'cheap-model';
   assert.equal(
     canUseModelReaction({ state, completedTurns: 10, lastReactionTurn: 0, lastReactionAt: Date.now() - 700000, noteworthy: true }),
     true,
   );
   assert.equal(
-    canUseModelReaction({ state, completedTurns: 2, lastReactionTurn: 0, lastReactionAt: Date.now() - 700000, noteworthy: true }),
+    canUseModelReaction({ state, completedTurns: 0, lastReactionTurn: 0, lastReactionAt: Date.now(), noteworthy: true }),
     false,
   );
 });
@@ -49,6 +48,6 @@ test('model reaction gate enforces cooldown and budgets', () => {
 test('state migration fills defaults', () => {
   const migrated = migrateState({ buddies: [] });
   assert.equal(migrated.version, 1);
-  assert.equal(migrated.settings.reactionMode, 'local-only');
+  assert.equal(migrated.settings.reactionMode, 'cheap-model');
   assert.equal(migrated.sessionUsage.buddyModelCalls, 0);
 });

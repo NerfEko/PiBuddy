@@ -56,9 +56,9 @@ export const DEFAULT_SETTINGS: BuddySettings = {
   compactMode: 'auto',
   bubbleMode: 'auto',
   soulMode: 'model',
-  reactionMode: 'local-only',
-  maxBuddyModelCallsPerSession: 3,
-  maxReactionCallsPerSession: 1,
+  reactionMode: 'cheap-model',
+  maxBuddyModelCallsPerSession: 50,
+  maxReactionCallsPerSession: 30,
 };
 
 export function createDefaultState(): BuddyState {

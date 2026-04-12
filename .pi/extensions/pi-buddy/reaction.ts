@@ -57,17 +57,17 @@ export async function maybeGenerateReaction(
   ) {
     return Math.random() < 0.3 ? { text: local, source: 'local' } : null;
   }
-  if (Math.random() >= 0.1) return null;
+  if (Math.random() >= 0.7) return null;
 
   try {
     const high = getHighestStat(buddy.stats);
-    const low = getLowestStat(buddy.stats);
     const prompt = [
-      `species=${buddy.species} rarity=${buddy.rarity} shiny=${buddy.shiny ? 'yes' : 'no'}`,
-      `peak=${high.name} low=${low.name}`,
-      `turnKind=${summary.turnKind}`,
-      `assistantSummary=${summary.assistantSummary}`,
-      'Write exactly one playful line under 90 chars. No quotes. No explanation.',
+      `You are ${buddy.name}, a ${buddy.rarity} ${buddy.species} coding companion.`,
+      `Your strongest trait is ${high.name}.`,
+      `The user's assistant just did: ${summary.turnKind}`,
+      `Summary: ${summary.assistantSummary}`,
+      `React in character as ${buddy.name} with one short playful line about what just happened.`,
+      `Under 50 chars. No quotes. No markdown. Just the line.`,
     ].join('\n');
 
     const userMessage: UserMessage = {

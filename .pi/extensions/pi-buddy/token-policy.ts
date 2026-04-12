@@ -6,10 +6,10 @@ export const TOKEN_POLICY = {
   reactionOutputTarget: 24,
   reactionOutputHardCap: 48,
   reactionInputBudget: 160,
-  maxBuddyModelCallsPerSession: 3,
-  maxReactionCallsPerSession: 1,
-  reactionTurnCooldown: 5,
-  reactionTimeCooldownMs: 10 * 60 * 1000,
+  maxBuddyModelCallsPerSession: 50,
+  maxReactionCallsPerSession: 30,
+  reactionTurnCooldown: 1,
+  reactionTimeCooldownMs: 10 * 1000,
 } as const;
 
 export interface ReactionGateInput {
