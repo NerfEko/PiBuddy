@@ -100,9 +100,9 @@ export class BuddyEditor extends CustomEditor {
     const showHearts = visual.heartsUntil > now;
     const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
 
-    // When bubble is active, don't add hearts as a separate line — they'll share the bubble line
+    // Hearts always above sprite when active
     const panelLines = [
-      ...(!showBubble && heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
+      ...(heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
       ...sprite,
       nameLine.padEnd(spriteWidth),
     ];
@@ -132,11 +132,10 @@ export class BuddyEditor extends CustomEditor {
 
     // Prepend overflow lines above the editor
     const aboveLines: string[] = [];
-    const bubbleText = showBubble
-      ? buildBubbleLine(visual.bubbleText!) + (showHearts ? ' ♥♥♥' : '')
-      : '';
+    const bubbleText = showBubble ? buildBubbleLine(visual.bubbleText!) : '';
 
-    // Sprite overflow lines — put bubble on the first overflow line
+    // Sprite overflow lines — put bubble on the hearts line (index 0) if hearts present,
+    // otherwise on the first sprite line
     for (let i = 0; i < overflowCount; i++) {
       const spritePart = panelLines[i]!;
       const pad = Math.max(0, width - spritePart.length - rightOffset);
