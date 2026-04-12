@@ -134,9 +134,9 @@ export class BuddyEditor extends CustomEditor {
 
     // How many panel lines fit in the editor
     const fitsInEditor = Math.min(panelLines.length, result.length);
-    // Cap overflow to 1 line max — one combined line above the editor
+    // Cap overflow: 3 lines when bubble active (top border, text, bottom border), 1 when idle
     const rawOverflow = panelLines.length - fitsInEditor;
-    const overflowCount = Math.min(rawOverflow, 1);
+    const overflowCount = Math.min(rawOverflow, showBubble ? 3 : 1);
     const panelShift = rawOverflow - overflowCount;
 
     // Paint what fits into editor lines (bottom-aligned), skipping top lines if capped
@@ -154,36 +154,31 @@ export class BuddyEditor extends CustomEditor {
     const bubbleTopLine = bubbleText ? buildBubbleTop(bubbleText) : '';
     const bubbleBotLine = bubbleText ? buildBubbleBot(bubbleText) : '';
 
-    // Overlay bubble borders onto editor top/bottom border lines
-    if (bubbleText) {
-      const spriteStart = width - spriteWidth - rightOffset;
-      const available = spriteStart - 1;
-      if (result.length > 0 && available > bubbleTopLine.length) {
-        const bPad = available - bubbleTopLine.length;
-        result[0] = overlayRight(' '.repeat(bPad) + bubbleTopLine + ' '.repeat(spriteWidth + 1), result[0]!, width, rightOffset);
-      }
-      if (result.length > 2 && available > bubbleBotLine.length) {
-        const bPad = available - bubbleBotLine.length;
-        const last = result.length - 1;
-        result[last] = overlayRight(' '.repeat(bPad) + bubbleBotLine + ' '.repeat(spriteWidth + 1), result[last]!, width, rightOffset);
-      }
-    }
+    // (bubble borders are rendered in the overflow lines above the editor)
 
     // Prepend overflow lines above the editor
     const aboveLines: string[] = [];
 
-    // One overflow line above the editor — bubble text to the left, sprite line to the right
+    // Overflow lines: top border, text, bottom border of bubble (left) + sprite lines (right)
     for (let i = 0; i < overflowCount; i++) {
       const spritePart = panelLines[panelShift + i]!;
       const pad = Math.max(0, width - spritePart.length - rightOffset);
-      if (bubbleContent) {
-        const available = pad - 1;
-        if (available > bubbleContent.length) {
-          const bPad = available - bubbleContent.length;
-          aboveLines.push(' '.repeat(bPad) + bubbleContent + ' ' + spritePart.padEnd(spriteWidth));
-        } else {
-          aboveLines.push(bubbleContent.slice(0, Math.max(0, available)) + ' ' + spritePart.padEnd(spriteWidth));
-        }
+      const available = pad - 1;
+
+      let bubblePart = '';
+      if (bubbleContent && overflowCount === 3) {
+        if (i === 0) bubblePart = bubbleTopLine;
+        else if (i === 1) bubblePart = bubbleContent;
+        else if (i === 2) bubblePart = bubbleBotLine;
+      } else if (bubbleContent) {
+        bubblePart = bubbleContent;
+      }
+
+      if (bubblePart && available > bubblePart.length) {
+        const bPad = available - bubblePart.length;
+        aboveLines.push(' '.repeat(bPad) + bubblePart + ' ' + spritePart.padEnd(spriteWidth));
+      } else if (bubblePart) {
+        aboveLines.push(bubblePart.slice(0, Math.max(0, available)) + ' ' + spritePart.padEnd(spriteWidth));
       } else {
         aboveLines.push(' '.repeat(pad) + spritePart);
       }
