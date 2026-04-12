@@ -38,10 +38,49 @@ export default function (pi: ExtensionAPI) {
   const activeBuddy = () => getActiveBuddy(state);
 
   const syncStatus = (ctx: ExtensionContext) => {
-    const buddy = activeBuddy();
-    const text = buddy && !state.settings.hidden ? `${buddy.name} ${buddy.rarity}${buddy.shiny ? ' ✨' : ''}` : '';
-    ctx.ui.setStatus?.('pi-buddy', text);
     requestRender();
+  };
+
+  const installFooter = (ctx: ExtensionContext) => {
+    if (!ctx.hasUI) return;
+    ctx.ui.setFooter((tui: any, theme: any, footerData: any) => {
+      const unsub = footerData.onBranchChange(() => tui.requestRender());
+      return {
+        dispose: unsub,
+        invalidate() {},
+        render(width: number): string[] {
+          const buddy = getActiveBuddy(state);
+          const usage = state.sessionUsage;
+          const fmt = (n: number) => n < 1000 ? `${n}` : `${(n / 1000).toFixed(1)}k`;
+
+          // Left: git branch + other extension statuses
+          const branch = footerData.getGitBranch();
+          const statuses = footerData.getExtensionStatuses() as Map<string, string>;
+          const leftParts: string[] = [];
+          if (branch) leftParts.push(branch);
+          for (const [key, val] of statuses) {
+            if (key !== 'pi-buddy' && val) leftParts.push(val);
+          }
+          const left = theme.fg('dim', leftParts.join(' · ') || '');
+
+          // Right: buddy name + model
+          const buddyStr = buddy && !state.settings.hidden
+            ? `${buddy.name} ${buddy.species} ${buddy.rarity}${buddy.shiny ? ' ✨' : ''}`
+            : '';
+          const tokenStr = usage.estimatedInputTokens > 0
+            ? `↑${fmt(usage.estimatedInputTokens)} ↓${fmt(usage.estimatedOutputTokens)}`
+            : '';
+          const modelName = ctx.model?.id || '';
+          const rightParts = [buddyStr, tokenStr ? `buddy: ${tokenStr}` : '', modelName].filter(Boolean);
+          const right = theme.fg('dim', rightParts.join(' · '));
+
+          const { visibleWidth } = require('@mariozechner/pi-tui') as any;
+          const { truncateToWidth } = require('@mariozechner/pi-tui') as any;
+          const pad = ' '.repeat(Math.max(1, width - visibleWidth(left) - visibleWidth(right)));
+          return [truncateToWidth(left + pad + right, width)];
+        },
+      };
+    });
   };
 
   const hatch = async (ctx: ExtensionContext) => {
@@ -266,6 +305,7 @@ export default function (pi: ExtensionAPI) {
     };
 
     installBuddyEditor(pi, ctx, buddyRuntime);
+    installFooter(ctx);
 
     syncStatus(ctx);
   });
