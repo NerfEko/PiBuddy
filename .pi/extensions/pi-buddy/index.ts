@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { showBuddyCard, showRosterBrowser } from './card.ts';
 import { registerBuddyCommands } from './commands.ts';
-import { installBuddyEditor, clearBuddyWidget, type BuddyVisualState } from './editor.ts';
+import { installBuddyWidget, clearBuddyWidget, type BuddyVisualState } from './editor.ts';
 import { generateSoul } from './soul.ts';
 import { maybeGenerateReaction, classifyTurn } from './reaction.ts';
 import { randomSeed, rollBuddy } from './roll.ts';
@@ -27,9 +27,7 @@ export default function (pi: ExtensionAPI) {
   let completedTurns = 0;
   let lastReactionTurn = -999;
   let lastReactionAt = 0;
-  const requestRender = () => {
-    // Editor handles its own render via tui.requestRender in its timer
-  };
+  const requestRender = () => {};
 
   const save = async () => {
     if (!state) return;
@@ -186,7 +184,7 @@ export default function (pi: ExtensionAPI) {
   pi.on('session_start', async (_event, ctx) => {
     state = await loadState(process.cwd());
 
-    installBuddyEditor(pi, ctx, {
+    installBuddyWidget(pi, ctx, {
       getState: () => state,
       getActiveBuddy: () => activeBuddy(),
       getVisualState: () => visual,

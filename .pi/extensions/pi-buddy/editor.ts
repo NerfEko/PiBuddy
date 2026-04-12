@@ -1,5 +1,4 @@
-import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
-import { truncateToWidth, visibleWidth } from '@mariozechner/pi-tui';
+import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { IDLE_SEQUENCE } from './constants.ts';
 import { renderSprite } from './sprites.ts';
 import { starsForRarity } from './theme.ts';
@@ -19,14 +18,7 @@ export interface BuddyEditorRuntime {
   getVisualState(): BuddyVisualState;
 }
 
-/** Pad a string (possibly with ANSI) to exact visible width */
-function padToWidth(str: string, width: number): string {
-  const vw = visibleWidth(str);
-  if (vw >= width) return truncateToWidth(str, width);
-  return str + ' '.repeat(width - vw);
-}
-
-/** Build a speech bubble that goes ABOVE the sprite */
+/** Build a speech bubble above the sprite */
 function buildBubbleLines(text: string, maxWidth: number): string[] {
   if (!text || maxWidth < 8) return [];
   const innerW = Math.max(4, maxWidth - 4);
@@ -53,8 +45,7 @@ function buildBubbleLines(text: string, maxWidth: number): string[] {
   ];
 }
 
-/** Build the right-side buddy panel: bubble on top, sprite below, name at bottom */
-function buildBuddyPanel(buddy: BuddyRecord, visual: BuddyVisualState, panelWidth: number): string[] {
+function buildWidgetLines(state: BuddyState, buddy: BuddyRecord, visual: BuddyVisualState): string[] {
   const now = Date.now();
   const frameToken = visual.animationState === 'idle'
     ? IDLE_SEQUENCE[visual.tick % IDLE_SEQUENCE.length]!
@@ -65,9 +56,8 @@ function buildBuddyPanel(buddy: BuddyRecord, visual: BuddyVisualState, panelWidt
   const lines: string[] = [];
 
   // Bubble above sprite
-  const showBubble = visual.bubbleText && visual.bubbleUntil > now;
-  if (showBubble) {
-    lines.push(...buildBubbleLines(visual.bubbleText!, panelWidth));
+  if (visual.bubbleText && visual.bubbleUntil > now) {
+    lines.push(...buildBubbleLines(visual.bubbleText, 30));
   }
 
   // Hearts
@@ -83,72 +73,49 @@ function buildBuddyPanel(buddy: BuddyRecord, visual: BuddyVisualState, panelWidt
   return lines;
 }
 
-export class BuddyEditor extends CustomEditor {
-  private runtime: BuddyEditorRuntime;
-  private animTimer: ReturnType<typeof setInterval> | undefined;
+let widgetTimer: ReturnType<typeof setInterval> | undefined;
 
-  constructor(tui: any, theme: any, keybindings: any, runtime: BuddyEditorRuntime) {
-    super(tui, theme, keybindings);
-    this.runtime = runtime;
-    this.animTimer = setInterval(() => {
-      const visual = this.runtime.getVisualState();
-      visual.tick += 1;
-      if (visual.bubbleUntil && Date.now() > visual.bubbleUntil) visual.bubbleText = null;
-      if (visual.animationState === 'petted' && Date.now() > visual.heartsUntil) visual.animationState = 'idle';
-      this.tui.requestRender();
-    }, 500);
-  }
-
-  render(width: number): string[] {
-    const state = this.runtime.getState();
-    const buddy = this.runtime.getActiveBuddy();
-    const visual = this.runtime.getVisualState();
-
-    // No buddy or hidden or too narrow: normal editor
-    if (!buddy || state.settings.hidden || width < 60) {
-      return super.render(width);
-    }
-
-    // Panel width: just enough for sprite + bubble
-    const panelWidth = Math.min(30, Math.max(14, Math.floor(width * 0.22)));
-    const gap = 1;
-    const editorWidth = width - panelWidth - gap;
-
-    // Render editor at reduced width
-    const editorLines = super.render(editorWidth);
-
-    // Build buddy panel (bubble + sprite + name, top to bottom)
-    const panelLines = buildBuddyPanel(buddy, visual, panelWidth);
-
-    // Bottom-align panel with the editor: the name line sits at the
-    // second-to-last editor line (one row up from the very bottom border)
-    const totalLines = editorLines.length;
-    const panelStart = Math.max(0, totalLines - panelLines.length - 1);
-    const merged: string[] = [];
-
-    for (let i = 0; i < totalLines; i++) {
-      const left = padToWidth(editorLines[i] ?? '', editorWidth);
-      const panelIdx = i - panelStart;
-      let right = '';
-      if (panelIdx >= 0 && panelIdx < panelLines.length) {
-        right = panelLines[panelIdx]!;
-      }
-      merged.push(truncateToWidth(`${left} ${right}`, width));
-    }
-
-    return merged;
-  }
-}
-
-export function installBuddyEditor(pi: ExtensionAPI, ctx: any, runtime: BuddyEditorRuntime): void {
+export function installBuddyWidget(pi: ExtensionAPI, ctx: ExtensionContext, runtime: BuddyEditorRuntime): void {
   if (!ctx.hasUI) return;
-  ctx.ui.setEditorComponent((tui: any, theme: any, keybindings: any) =>
-    new BuddyEditor(tui, theme, keybindings, runtime),
-  );
+
+  const update = () => {
+    const state = runtime.getState();
+    const buddy = runtime.getActiveBuddy();
+    const visual = runtime.getVisualState();
+
+    // Tick animation
+    visual.tick += 1;
+    if (visual.bubbleUntil && Date.now() > visual.bubbleUntil) visual.bubbleText = null;
+    if (visual.animationState === 'petted' && Date.now() > visual.heartsUntil) visual.animationState = 'idle';
+
+    if (buddy && !state.settings.hidden) {
+      const lines = buildWidgetLines(state, buddy, visual);
+      // Right-align each line by padding with spaces on the left
+      ctx.ui.setWidget('pi-buddy-sidecar', (_tui: any, _theme: any) => ({
+        render(width: number) {
+          return lines.map(line => {
+            const pad = Math.max(0, width - line.length);
+            return ' '.repeat(pad) + line;
+          });
+        },
+        invalidate() {},
+      }), { placement: 'belowEditor' });
+    } else {
+      ctx.ui.setWidget('pi-buddy-sidecar', undefined);
+    }
+  };
+
+  if (widgetTimer) clearInterval(widgetTimer);
+  widgetTimer = setInterval(update, 500);
+  update();
 }
 
-export function clearBuddyWidget(ctx: any): void {
+export function clearBuddyWidget(ctx: ExtensionContext): void {
+  if (widgetTimer) {
+    clearInterval(widgetTimer);
+    widgetTimer = undefined;
+  }
   if (ctx.hasUI) {
-    ctx.ui.setEditorComponent(undefined);
+    ctx.ui.setWidget('pi-buddy-sidecar', undefined);
   }
 }
