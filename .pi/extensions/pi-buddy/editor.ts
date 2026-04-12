@@ -1,53 +1,82 @@
-import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
-import { truncateToWidth } from '@mariozechner/pi-tui';
-import { buildSidecarLines, type BuddyVisualState } from './sidecar.ts';
-export type { BuddyVisualState } from './sidecar.ts';
+import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
+import { COMPACT_FACES, renderCompactFace } from './faces.ts';
+import { IDLE_SEQUENCE } from './constants.ts';
+import { renderHearts, renderReactionBubble } from './bubble.ts';
+import { renderSprite } from './sprites.ts';
+import { getHighestStat, getLowestStat } from './roll.ts';
+import { getSidecarMode, SIDECAR_WIDTHS, starsForRarity } from './theme.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
+
+export { type BuddyVisualState } from './sidecar.ts';
 
 export interface BuddyEditorRuntime {
   getState(): BuddyState;
   getActiveBuddy(): BuddyRecord | undefined;
-  getVisualState(): BuddyVisualState;
-  registerEditor(editor: BuddyEditor): void;
-  unregisterEditor(editor: BuddyEditor): void;
+  getVisualState(): import('./sidecar.ts').BuddyVisualState;
 }
 
-export class BuddyEditor extends CustomEditor {
-  private runtime: BuddyEditorRuntime;
+function buildWidgetLines(state: BuddyState, buddy: BuddyRecord | undefined, visual: import('./sidecar.ts').BuddyVisualState): string[] {
+  if (state.settings.hidden || !buddy) return [];
 
-  constructor(
-    tui: any,
-    theme: any,
-    keybindings: any,
-    runtime: BuddyEditorRuntime,
-  ) {
-    super(tui, theme, keybindings);
-    this.runtime = runtime;
-    this.runtime.registerEditor(this);
+  const now = Date.now();
+  const frameToken = visual.animationState === 'idle'
+    ? IDLE_SEQUENCE[visual.tick % IDLE_SEQUENCE.length]!
+    : visual.animationState === 'speaking' ? 2 : 1;
+  const blink = frameToken === -1;
+  const frame = frameToken < 0 ? 0 : frameToken;
+
+  const lines: string[] = [];
+
+  if (visual.heartsUntil > now) lines.push(...renderHearts());
+
+  const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
+  lines.push(...sprite);
+  lines.push(`${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`);
+
+  const high = getHighestStat(buddy.stats);
+  const low = getLowestStat(buddy.stats);
+  lines.push(`↑ ${high.name}  ↓ ${low.name}`);
+
+  if (visual.bubbleText && visual.bubbleUntil > now) {
+    lines.push(`💬 ${visual.bubbleText}`);
   }
 
-  render(width: number): string[] {
-    const state = this.runtime.getState();
-    const buddy = this.runtime.getActiveBuddy();
-    const visual = this.runtime.getVisualState();
-    const sidecar = buildSidecarLines(width, state, buddy, visual);
-    if (sidecar.width <= 0) return super.render(width);
-
-    const gap = 1;
-    const leftWidth = Math.max(20, width - sidecar.width - gap);
-    const left = super.render(leftWidth);
-    const maxLines = Math.max(left.length, sidecar.lines.length);
-    const merged: string[] = [];
-    for (let i = 0; i < maxLines; i += 1) {
-      const leftLine = (left[i] ?? '').padEnd(leftWidth);
-      const rightLine = truncateToWidth(sidecar.lines[i] ?? '', sidecar.width);
-      merged.push(`${leftLine}${' '.repeat(gap)}${rightLine}`.slice(0, width));
-    }
-    return merged;
-  }
+  return lines;
 }
 
-export function installBuddyEditor(pi: ExtensionAPI, ctx: any, runtime: BuddyEditorRuntime): void {
+let widgetTimer: ReturnType<typeof setInterval> | undefined;
+
+export function installBuddyWidget(pi: ExtensionAPI, ctx: ExtensionContext, runtime: BuddyEditorRuntime): void {
   if (!ctx.hasUI) return;
-  ctx.ui.setEditorComponent((tui: any, theme: any, keybindings: any) => new BuddyEditor(tui, theme, keybindings, runtime));
+
+  const update = () => {
+    const state = runtime.getState();
+    const buddy = runtime.getActiveBuddy();
+    const visual = runtime.getVisualState();
+    const lines = buildWidgetLines(state, buddy, visual);
+    if (lines.length > 0) {
+      ctx.ui.setWidget('pi-buddy-sidecar', lines, { placement: 'belowEditor' });
+    } else {
+      ctx.ui.setWidget('pi-buddy-sidecar', undefined);
+    }
+  };
+
+  // Clear any previous timer
+  if (widgetTimer) clearInterval(widgetTimer);
+
+  // Update on every animation tick
+  widgetTimer = setInterval(update, 500);
+
+  // Initial render
+  update();
+}
+
+export function clearBuddyWidget(ctx: ExtensionContext): void {
+  if (widgetTimer) {
+    clearInterval(widgetTimer);
+    widgetTimer = undefined;
+  }
+  if (ctx.hasUI) {
+    ctx.ui.setWidget('pi-buddy-sidecar', undefined);
+  }
 }

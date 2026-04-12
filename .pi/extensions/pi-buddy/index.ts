@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { showBuddyCard, showRosterBrowser } from './card.ts';
 import { registerBuddyCommands } from './commands.ts';
-import { installBuddyEditor, type BuddyEditor, type BuddyVisualState } from './editor.ts';
+import { installBuddyWidget, clearBuddyWidget, type BuddyVisualState } from './editor.ts';
 import { generateSoul } from './soul.ts';
 import { maybeGenerateReaction, classifyTurn } from './reaction.ts';
 import { randomSeed, rollBuddy } from './roll.ts';
@@ -28,12 +28,10 @@ export default function (pi: ExtensionAPI) {
   let completedTurns = 0;
   let lastReactionTurn = -999;
   let lastReactionAt = 0;
-  const editors = new Set<BuddyEditor>();
+  let currentCtx: ExtensionContext | null = null;
 
   const requestRender = () => {
-    for (const editor of editors) {
-      editor.tui.requestRender();
-    }
+    // Widget auto-updates on its timer; nothing to do here
   };
 
   const save = async () => {
@@ -190,16 +188,12 @@ export default function (pi: ExtensionAPI) {
 
   pi.on('session_start', async (_event, ctx) => {
     state = await loadState(process.cwd());
-    installBuddyEditor(pi, ctx, {
+    currentCtx = ctx;
+
+    installBuddyWidget(pi, ctx, {
       getState: () => state,
       getActiveBuddy: () => activeBuddy(),
       getVisualState: () => visual,
-      registerEditor(editor) {
-        editors.add(editor);
-      },
-      unregisterEditor(editor) {
-        editors.delete(editor);
-      },
     });
 
     clearInterval(timer);
@@ -207,7 +201,6 @@ export default function (pi: ExtensionAPI) {
       visual.tick += 1;
       if (visual.bubbleUntil && Date.now() > visual.bubbleUntil) visual.bubbleText = null;
       if (visual.animationState === 'petted' && Date.now() > visual.heartsUntil) visual.animationState = 'idle';
-      requestRender();
     }, 500);
 
     syncStatus(ctx);
@@ -252,8 +245,9 @@ export default function (pi: ExtensionAPI) {
     requestRender();
   });
 
-  pi.on('session_shutdown', async () => {
+  pi.on('session_shutdown', async (_event, ctx) => {
     if (timer) clearInterval(timer);
+    clearBuddyWidget(ctx);
     await save();
   });
 }
