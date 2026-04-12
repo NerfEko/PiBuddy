@@ -126,22 +126,38 @@ export class BuddyEditor extends CustomEditor {
 
     // Prepend overflow lines above the editor
     const aboveLines: string[] = [];
-
-    // Build single-line bubble if active — goes on its own line above everything
     const showBubble = visual.bubbleText && visual.bubbleUntil > now;
-    if (showBubble) {
-      const bubbleLine = buildBubbleLine(visual.bubbleText!);
-      // Right-align it so it ends just before the sprite area
-      const spriteStart = width - spriteWidth - rightOffset;
-      const bubblePos = Math.max(0, spriteStart - bubbleLine.length - 1);
-      aboveLines.push(' '.repeat(bubblePos) + bubbleLine);
-    }
+    const bubbleLine = showBubble ? buildBubbleLine(visual.bubbleText!) : '';
 
-    // Sprite overflow lines
+    // Sprite overflow lines — put bubble on the FIRST overflow line, to its left
     for (let i = 0; i < overflowCount; i++) {
       const spritePart = panelLines[i]!;
       const pad = Math.max(0, width - spritePart.length - rightOffset);
-      aboveLines.push(' '.repeat(pad) + spritePart);
+      if (i === 0 && bubbleLine) {
+        // Place bubble text to the left, sharing this line
+        const spriteRight = ' '.repeat(pad) + spritePart;
+        const available = pad - 1;
+        if (available > bubbleLine.length) {
+          const bPad = available - bubbleLine.length;
+          aboveLines.push(' '.repeat(bPad) + bubbleLine + ' ' + spritePart.padEnd(spriteWidth));
+        } else {
+          // Not enough room — truncate bubble
+          aboveLines.push(bubbleLine.slice(0, Math.max(0, available)) + ' ' + spritePart.padEnd(spriteWidth));
+        }
+      } else {
+        aboveLines.push(' '.repeat(pad) + spritePart);
+      }
+    }
+
+    // If no overflow lines but bubble is active, put bubble on the first editor line
+    if (overflowCount === 0 && bubbleLine) {
+      const firstEditorLine = result[0] ?? '';
+      const spriteStart = width - spriteWidth - rightOffset;
+      const available = spriteStart - 1;
+      if (available > bubbleLine.length) {
+        const bPad = available - bubbleLine.length;
+        result[0] = overlayRight(' '.repeat(bPad) + bubbleLine + ' '.repeat(spriteWidth + 1), result[0]!, width, rightOffset);
+      }
     }
 
     if (aboveLines.length > 0) {
