@@ -1,4 +1,6 @@
-import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
+import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
+import type { ExtensionContext } from '@mariozechner/pi-coding-agent';
+import { visibleWidth } from '@mariozechner/pi-tui';
 import { IDLE_SEQUENCE } from './constants.ts';
 import { renderSprite } from './sprites.ts';
 import { starsForRarity } from './theme.ts';
@@ -45,101 +47,127 @@ function buildBubbleLines(text: string, maxWidth: number): string[] {
   ];
 }
 
-let overlayHandle: any = null;
-let animTimer: ReturnType<typeof setInterval> | undefined;
+/** Right-pad a string that may have ANSI to a visible width */
+function rpad(str: string, width: number): string {
+  const vw = visibleWidth(str);
+  if (vw >= width) return str;
+  return str + ' '.repeat(width - vw);
+}
 
-export function installBuddyOverlay(pi: ExtensionAPI, ctx: ExtensionContext, runtime: BuddyEditorRuntime): void {
-  if (!ctx.hasUI) return;
+/** Overwrite the right side of a line with plain text */
+function overlayRight(baseLine: string, overlayStr: string, totalWidth: number): string {
+  const overlayLen = overlayStr.length;
+  const startCol = totalWidth - overlayLen;
+  if (startCol <= 0) return overlayStr.slice(0, totalWidth);
 
-  // Close any existing overlay
-  if (overlayHandle) {
-    try { overlayHandle.hide(); } catch {}
-    overlayHandle = null;
+  // We need to place overlayStr at the right edge.
+  // Since baseLine has ANSI, we can't just slice by index.
+  // Strategy: pad baseLine to totalWidth, then truncate to startCol and append overlay
+  const padded = rpad(baseLine, totalWidth);
+  const baseVW = visibleWidth(padded);
+
+  // Simple approach: the base line rendered, we cut visible chars from right
+  // and replace with our overlay. For ANSI lines this is approximate but
+  // works because overlay text is plain ASCII.
+  // Just use the raw string positions as best effort.
+  const parts: string[] = [];
+  let visCount = 0;
+  let cutIndex = 0;
+  let inEsc = false;
+  for (let i = 0; i < padded.length; i++) {
+    if (padded[i] === '\x1b') inEsc = true;
+    if (!inEsc) {
+      if (visCount >= startCol) {
+        cutIndex = i;
+        break;
+      }
+      visCount++;
+    }
+    if (inEsc && padded[i] === 'm') inEsc = false;
+    cutIndex = i + 1;
   }
-  if (animTimer) clearInterval(animTimer);
+  return padded.slice(0, cutIndex) + overlayStr;
+}
 
-  // Create a persistent non-capturing overlay anchored bottom-right
-  ctx.ui.custom<void>(
-    (tui, _theme, _kb, _done) => {
-      const component = {
-        render(width: number): string[] {
-          const state = runtime.getState();
-          const buddy = runtime.getActiveBuddy();
-          const visual = runtime.getVisualState();
+export class BuddyEditor extends CustomEditor {
+  private runtime: BuddyEditorRuntime;
+  private animTimer: ReturnType<typeof setInterval> | undefined;
 
-          if (!buddy || state.settings.hidden) return [''];
+  constructor(tui: any, theme: any, keybindings: any, runtime: BuddyEditorRuntime) {
+    super(tui, theme, keybindings);
+    this.runtime = runtime;
+    this.animTimer = setInterval(() => {
+      const visual = this.runtime.getVisualState();
+      visual.tick += 1;
+      if (visual.bubbleUntil && Date.now() > visual.bubbleUntil) visual.bubbleText = null;
+      if (visual.animationState === 'petted' && Date.now() > visual.heartsUntil) visual.animationState = 'idle';
+      this.tui.requestRender();
+    }, 500);
+  }
 
-          const now = Date.now();
-          const frameToken = visual.animationState === 'idle'
-            ? IDLE_SEQUENCE[visual.tick % IDLE_SEQUENCE.length]!
-            : visual.animationState === 'speaking' ? 2 : 1;
-          const blink = frameToken === -1;
-          const frame = frameToken < 0 ? 0 : frameToken;
+  render(width: number): string[] {
+    const state = this.runtime.getState();
+    const buddy = this.runtime.getActiveBuddy();
+    const visual = this.runtime.getVisualState();
 
-          const lines: string[] = [];
+    // Render editor at FULL width — no squishing
+    const editorLines = super.render(width);
 
-          // Bubble above sprite
-          if (visual.bubbleText && visual.bubbleUntil > now) {
-            lines.push(...buildBubbleLines(visual.bubbleText, width));
-          }
+    if (!buddy || state.settings.hidden || width < 60) {
+      return editorLines;
+    }
 
-          // Hearts
-          if (visual.heartsUntil > now) lines.push('♥  ♥  ♥');
+    const now = Date.now();
+    const frameToken = visual.animationState === 'idle'
+      ? IDLE_SEQUENCE[visual.tick % IDLE_SEQUENCE.length]!
+      : visual.animationState === 'speaking' ? 2 : 1;
+    const blink = frameToken === -1;
+    const frame = frameToken < 0 ? 0 : frameToken;
 
-          // Sprite
-          const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
-          lines.push(...sprite);
+    // Build sprite + name
+    const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
+    const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
+    const hearts = visual.heartsUntil > now ? '♥  ♥  ♥' : '';
 
-          // Name
-          lines.push(`${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`);
+    // Buddy panel lines (bottom-up: name, then sprite, then optional hearts)
+    const panelLines = [...(hearts ? [hearts] : []), ...sprite, nameLine];
 
-          return lines;
-        },
-        invalidate() {},
-      };
+    // Overlay the buddy panel onto the RIGHT side of the editor lines
+    // The panel sits within the editor box area only
+    const result = [...editorLines];
+    const editorEnd = result.length; // last line is bottom border
+    const panelStart = Math.max(0, editorEnd - panelLines.length);
 
-      // Start animation timer
-      animTimer = setInterval(() => {
-        const visual = runtime.getVisualState();
-        visual.tick += 1;
-        if (visual.bubbleUntil && Date.now() > visual.bubbleUntil) visual.bubbleText = null;
-        if (visual.animationState === 'petted' && Date.now() > visual.heartsUntil) visual.animationState = 'idle';
-        tui.requestRender();
-      }, 500);
+    for (let i = 0; i < panelLines.length; i++) {
+      const lineIdx = panelStart + i;
+      if (lineIdx < 0 || lineIdx >= result.length) continue;
+      result[lineIdx] = overlayRight(result[lineIdx]!, '  ' + panelLines[i]!, width);
+    }
 
-      return component;
-    },
-    {
-      overlay: true,
-      overlayOptions: () => {
-        const visual = runtime.getVisualState();
-        const hasBubble = visual.bubbleText && visual.bubbleUntil > Date.now();
-        return {
-          anchor: 'bottom-right' as const,
-          width: hasBubble ? 34 : 22,
-          maxHeight: '50%',
-          margin: { bottom: 5, right: 2, top: 0, left: 0 },
-          nonCapturing: true,
-        };
-      },
-      onHandle: (handle: any) => {
-        overlayHandle = handle;
-      },
-    },
+    // If bubble is active, prepend bubble lines ABOVE the editor
+    if (visual.bubbleText && visual.bubbleUntil > now) {
+      const bubbleLines = buildBubbleLines(visual.bubbleText, 34);
+      // Right-align the bubble lines
+      const rightAligned = bubbleLines.map(line => {
+        const pad = Math.max(0, width - line.length - 2);
+        return ' '.repeat(pad) + line;
+      });
+      return [...rightAligned, ...result];
+    }
+
+    return result;
+  }
+}
+
+export function installBuddyEditor(pi: ExtensionAPI, ctx: any, runtime: BuddyEditorRuntime): void {
+  if (!ctx.hasUI) return;
+  ctx.ui.setEditorComponent((tui: any, theme: any, keybindings: any) =>
+    new BuddyEditor(tui, theme, keybindings, runtime),
   );
 }
 
-export function clearBuddyOverlay(ctx: ExtensionContext): void {
-  if (animTimer) {
-    clearInterval(animTimer);
-    animTimer = undefined;
+export function clearBuddyEditor(ctx: any): void {
+  if (ctx.hasUI) {
+    ctx.ui.setEditorComponent(undefined);
   }
-  if (overlayHandle) {
-    try { overlayHandle.hide(); } catch {}
-    overlayHandle = null;
-  }
-}
-
-export function requestBuddyRender(): void {
-  // Overlay re-renders on its own timer
 }
