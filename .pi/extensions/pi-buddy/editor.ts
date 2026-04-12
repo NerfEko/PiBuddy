@@ -1,9 +1,7 @@
 import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import { truncateToWidth, visibleWidth } from '@mariozechner/pi-tui';
-import { COMPACT_FACES, renderCompactFace } from './faces.ts';
 import { IDLE_SEQUENCE } from './constants.ts';
 import { renderSprite } from './sprites.ts';
-import { getHighestStat, getLowestStat } from './roll.ts';
 import { starsForRarity } from './theme.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
 
@@ -28,33 +26,34 @@ function padToWidth(str: string, width: number): string {
   return str + ' '.repeat(width - vw);
 }
 
-/** Build a small ASCII speech bubble to the right of the sprite */
+/** Build a speech bubble that goes ABOVE the sprite */
 function buildBubbleLines(text: string, maxWidth: number): string[] {
   if (!text || maxWidth < 8) return [];
-  const innerW = Math.min(maxWidth - 4, text.length);
+  const innerW = Math.max(4, maxWidth - 4);
   const words = text.split(/\s+/);
-  const lines: string[] = [];
+  const wrapped: string[] = [];
   let cur = '';
   for (const word of words) {
     const next = cur ? `${cur} ${word}` : word;
     if (next.length > innerW && cur) {
-      lines.push(cur);
+      wrapped.push(cur);
       cur = word;
     } else {
       cur = next;
     }
   }
-  if (cur) lines.push(cur);
-  const wrapped = lines.slice(0, 3);
-  const w = Math.max(...wrapped.map(l => l.length));
+  if (cur) wrapped.push(cur);
+  const lines = wrapped.slice(0, 3);
+  const w = Math.max(...lines.map(l => l.length));
   return [
     `.-${'-'.repeat(w)}-.`,
-    ...wrapped.map(l => `| ${l.padEnd(w)} |`),
+    ...lines.map(l => `| ${l.padEnd(w)} |`),
     `'-${'-'.repeat(w)}-'`,
+    `  \\`,
   ];
 }
 
-/** Build the right-side buddy panel lines */
+/** Build the right-side buddy panel: bubble on top, sprite below, name at bottom */
 function buildBuddyPanel(buddy: BuddyRecord, visual: BuddyVisualState, panelWidth: number): string[] {
   const now = Date.now();
   const frameToken = visual.animationState === 'idle'
@@ -63,33 +62,23 @@ function buildBuddyPanel(buddy: BuddyRecord, visual: BuddyVisualState, panelWidt
   const blink = frameToken === -1;
   const frame = frameToken < 0 ? 0 : frameToken;
 
-  const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
-  const spriteWidth = Math.max(...sprite.map(l => l.length));
-
-  // Build bubble if active
-  const showBubble = visual.bubbleText && visual.bubbleUntil > now;
-  const bubbleMaxW = panelWidth - spriteWidth - 1;
-  const bubble = showBubble ? buildBubbleLines(visual.bubbleText!, bubbleMaxW) : [];
-
-  // Hearts
-  const showHearts = visual.heartsUntil > now;
-
   const lines: string[] = [];
-  if (showHearts) lines.push('♥  ♥  ♥');
 
-  // Merge sprite + bubble side by side
-  const mergedHeight = Math.max(sprite.length, bubble.length);
-  for (let i = 0; i < mergedHeight; i++) {
-    const sLine = sprite[i] ?? '';
-    const bLine = bubble[i] ?? '';
-    const padded = sLine.padEnd(spriteWidth);
-    const combined = bLine ? `${padded} ${bLine}` : padded;
-    lines.push(combined);
+  // Bubble above sprite
+  const showBubble = visual.bubbleText && visual.bubbleUntil > now;
+  if (showBubble) {
+    lines.push(...buildBubbleLines(visual.bubbleText!, panelWidth));
   }
 
-  // Name + info line
-  const info = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
-  lines.push(info);
+  // Hearts
+  if (visual.heartsUntil > now) lines.push('♥  ♥  ♥');
+
+  // Sprite
+  const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
+  lines.push(...sprite);
+
+  // Name line
+  lines.push(`${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`);
 
   return lines;
 }
@@ -115,35 +104,36 @@ export class BuddyEditor extends CustomEditor {
     const buddy = this.runtime.getActiveBuddy();
     const visual = this.runtime.getVisualState();
 
-    // No buddy or hidden: render editor normally
+    // No buddy or hidden or too narrow: normal editor
     if (!buddy || state.settings.hidden || width < 60) {
       return super.render(width);
     }
 
-    // Calculate panel width — give most space to editor
-    const panelWidth = Math.min(36, Math.max(16, Math.floor(width * 0.25)));
+    // Panel width: just enough for sprite + bubble
+    const panelWidth = Math.min(30, Math.max(14, Math.floor(width * 0.22)));
     const gap = 1;
     const editorWidth = width - panelWidth - gap;
 
     // Render editor at reduced width
     const editorLines = super.render(editorWidth);
 
-    // Build buddy panel
+    // Build buddy panel (bubble + sprite + name, top to bottom)
     const panelLines = buildBuddyPanel(buddy, visual, panelWidth);
 
-    // Merge: editor on left, buddy on right
-    // Buddy panel is bottom-aligned with the editor
-    const totalLines = Math.max(editorLines.length, panelLines.length);
-    const panelOffset = totalLines - panelLines.length;
+    // Bottom-align panel with the editor: the name line sits at the
+    // second-to-last editor line (one row up from the very bottom border)
+    const totalLines = editorLines.length;
+    const panelStart = Math.max(0, totalLines - panelLines.length - 1);
     const merged: string[] = [];
 
     for (let i = 0; i < totalLines; i++) {
       const left = padToWidth(editorLines[i] ?? '', editorWidth);
-      const panelIdx = i - panelOffset;
-      const right = panelIdx >= 0 && panelIdx < panelLines.length
-        ? truncateToWidth(panelLines[panelIdx]!, panelWidth)
-        : '';
-      merged.push(truncateToWidth(`${left}${' '.repeat(gap)}${right}`, width));
+      const panelIdx = i - panelStart;
+      let right = '';
+      if (panelIdx >= 0 && panelIdx < panelLines.length) {
+        right = panelLines[panelIdx]!;
+      }
+      merged.push(truncateToWidth(`${left} ${right}`, width));
     }
 
     return merged;
