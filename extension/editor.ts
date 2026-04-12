@@ -97,10 +97,16 @@ function getBuddyDisplay(runtime: BuddyEditorRuntime): {
     lines.push((bubblePart + spritePart).trimEnd());
   }
 
+  // Always reserve enough width for bubble + sprite so the overlay box
+  // never resizes when the bubble appears/disappears. This keeps the
+  // sprite anchored in the same position.
+  const maxBubbleWidth = getBubbleRenderWidth('x'.repeat(30), spriteWidth);
+  const stableOverlayWidth = maxBubbleWidth + 1 + spriteWidth;
+
   return {
     visible: true,
     reservedWidth: spriteWidth + 2,
-    overlayWidth: bubbleWidth + (bubbleWidth > 0 ? 1 : 0) + spriteWidth,
+    overlayWidth: stableOverlayWidth,
     lines,
   };
 }
@@ -109,9 +115,15 @@ class BuddyOverlayComponent {
   constructor(private runtime: BuddyEditorRuntime) {}
 
   render(width: number): string[] {
+    // Right-align content so sprite stays fixed at the right edge
+    // whether or not the bubble is showing
     const display = getBuddyDisplay(this.runtime);
     if (!display.visible) return [];
-    return display.lines;
+    return display.lines.map(line => {
+      const vw = visibleWidth(line);
+      if (vw >= width) return line;
+      return ' '.repeat(width - vw) + line;
+    });
   }
 
   invalidate(): void {}
