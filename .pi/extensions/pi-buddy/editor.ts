@@ -96,10 +96,16 @@ export class BuddyEditor extends CustomEditor {
     const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
     const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
     const spriteWidth = Math.max(...sprite.map(l => l.length));
-    const hearts = visual.heartsUntil > now ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
+    const showBubble = visual.bubbleText && visual.bubbleUntil > now;
+    const showHearts = visual.heartsUntil > now;
+    const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
 
-    // Buddy panel lines (hearts on top, then sprite, then name)
-    const panelLines = [...(hearts ? [hearts.padEnd(spriteWidth)] : []), ...sprite, nameLine.padEnd(spriteWidth)];
+    // When bubble is active, don't add hearts as a separate line — they'll share the bubble line
+    const panelLines = [
+      ...(!showBubble && heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
+      ...sprite,
+      nameLine.padEnd(spriteWidth),
+    ];
 
     // Render editor at reduced width so text wraps before hitting the buddy
     const buddyReserved = spriteWidth + 2;
@@ -126,24 +132,24 @@ export class BuddyEditor extends CustomEditor {
 
     // Prepend overflow lines above the editor
     const aboveLines: string[] = [];
-    const showBubble = visual.bubbleText && visual.bubbleUntil > now;
-    const bubbleLine = showBubble ? buildBubbleLine(visual.bubbleText!) : '';
+    const bubbleText = showBubble
+      ? buildBubbleLine(visual.bubbleText!) + (showHearts ? ' ♥♥♥' : '')
+      : '';
 
-    // Sprite overflow lines — put bubble on the SECOND overflow line (or first if only one)
-    const bubbleTargetLine = overflowCount >= 2 ? 1 : 0;
+    // Sprite overflow lines — put bubble on the first overflow line
     for (let i = 0; i < overflowCount; i++) {
       const spritePart = panelLines[i]!;
       const pad = Math.max(0, width - spritePart.length - rightOffset);
-      if (i === bubbleTargetLine && bubbleLine) {
+      if (i === 0 && bubbleText) {
         // Place bubble text to the left, sharing this line
         const spriteRight = ' '.repeat(pad) + spritePart;
         const available = pad - 1;
-        if (available > bubbleLine.length) {
-          const bPad = available - bubbleLine.length;
-          aboveLines.push(' '.repeat(bPad) + bubbleLine + ' ' + spritePart.padEnd(spriteWidth));
+        if (available > bubbleText.length) {
+          const bPad = available - bubbleText.length;
+          aboveLines.push(' '.repeat(bPad) + bubbleText + ' ' + spritePart.padEnd(spriteWidth));
         } else {
           // Not enough room — truncate bubble
-          aboveLines.push(bubbleLine.slice(0, Math.max(0, available)) + ' ' + spritePart.padEnd(spriteWidth));
+          aboveLines.push(bubbleText.slice(0, Math.max(0, available)) + ' ' + spritePart.padEnd(spriteWidth));
         }
       } else {
         aboveLines.push(' '.repeat(pad) + spritePart);
