@@ -64,10 +64,15 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
     heartsInlined = true;
   }
 
+  // Center name under the sprite
+  const nameVW = visibleWidth(nameLine);
+  const nameLeftPad = Math.max(0, Math.floor((spriteWidth - nameVW) / 2));
+  const centeredName = ' '.repeat(nameLeftPad) + nameLine;
+
   const lines = [
     ...(!heartsInlined && heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
     ...spriteLines.map((l) => l.padEnd(spriteWidth)),
-    nameLine.padEnd(spriteWidth),
+    centeredName.padEnd(spriteWidth),
   ];
 
   return { visible: true, spriteWidth, lines };
