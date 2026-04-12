@@ -11,5 +11,7 @@ export function renderSprite(species: Species, frameIndex: number, eye: Eye, hat
   if (hat !== 'none' && rendered[0].trim().length === 0) {
     rendered[0] = HAT_OVERLAYS[hat];
   }
-  return rendered;
+  // Pad all lines to the same width (max line length in this frame)
+  const maxLen = Math.max(...rendered.map(l => l.length));
+  return rendered.map(l => l.padEnd(maxLen));
 }

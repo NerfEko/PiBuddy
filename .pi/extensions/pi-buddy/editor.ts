@@ -78,7 +78,7 @@ function overlayRight(baseLine: string, overlayStr: string, totalWidth: number, 
     if (inEsc && padded[i] === 'm') inEsc = false;
     cutIndex = i + 1;
   }
-  return padded.slice(0, cutIndex) + overlayStr;
+  return padded.slice(0, cutIndex) + '\x1b[0m' + overlayStr;
 }
 
 export class BuddyEditor extends CustomEditor {
