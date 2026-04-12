@@ -140,23 +140,42 @@ export class BuddyEditor extends CustomEditor {
 
     // Prepend overflow lines above the editor
     const aboveLines: string[] = [];
-    const bubbleText = showBubble ? buildBubbleLine(visual.bubbleText!) : '';
+    const bubbleText = showBubble ? visual.bubbleText! : '';
+    const bubbleContent = bubbleText ? `| ${bubbleText} |` : '';
+    const bubbleW = bubbleText ? bubbleText.length + 4 : 0;
+    const bubbleTop = bubbleText ? `'${'-'.repeat(bubbleW - 2)}'` : '';
+    const bubbleBot = bubbleText ? `.${'-'.repeat(bubbleW - 2)}.` : '';
 
-    // Sprite overflow lines — put bubble on the hearts line (index 0) if hearts present,
-    // otherwise on the first sprite line
     for (let i = 0; i < overflowCount; i++) {
       const spritePart = panelLines[i]!;
       const pad = Math.max(0, width - spritePart.length - rightOffset);
-      if (i === 1 && bubbleText) {
-        // Place bubble text to the left, sharing this line
-        const spriteRight = ' '.repeat(pad) + spritePart;
+
+      if (bubbleContent && i === 0 && overflowCount >= 3) {
+        // Top border of bubble on line above text
         const available = pad - 1;
-        if (available > bubbleText.length) {
-          const bPad = available - bubbleText.length;
-          aboveLines.push(' '.repeat(bPad) + bubbleText + ' ' + spritePart.padEnd(spriteWidth));
+        if (available > bubbleBot.length) {
+          const bPad = available - bubbleBot.length;
+          aboveLines.push(' '.repeat(bPad) + bubbleBot + ' ' + spritePart.padEnd(spriteWidth));
         } else {
-          // Not enough room — truncate bubble
-          aboveLines.push(bubbleText.slice(0, Math.max(0, available)) + ' ' + spritePart.padEnd(spriteWidth));
+          aboveLines.push(' '.repeat(pad) + spritePart);
+        }
+      } else if (bubbleContent && i === 1) {
+        // Bubble text line
+        const available = pad - 1;
+        if (available > bubbleContent.length) {
+          const bPad = available - bubbleContent.length;
+          aboveLines.push(' '.repeat(bPad) + bubbleContent + ' ' + spritePart.padEnd(spriteWidth));
+        } else {
+          aboveLines.push(bubbleContent.slice(0, Math.max(0, available)) + ' ' + spritePart.padEnd(spriteWidth));
+        }
+      } else if (bubbleContent && i === 2 && overflowCount >= 3) {
+        // Bottom border of bubble
+        const available = pad - 1;
+        if (available > bubbleTop.length) {
+          const bPad = available - bubbleTop.length;
+          aboveLines.push(' '.repeat(bPad) + bubbleTop + ' ' + spritePart.padEnd(spriteWidth));
+        } else {
+          aboveLines.push(' '.repeat(pad) + spritePart);
         }
       } else {
         aboveLines.push(' '.repeat(pad) + spritePart);
