@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { showBuddyCard, showRosterBrowser } from './card.ts';
 import { registerBuddyCommands } from './commands.ts';
-import { installBuddyWidget, clearBuddyWidget, type BuddyVisualState } from './editor.ts';
+import { installBuddyEditor, clearBuddyWidget, type BuddyVisualState } from './editor.ts';
 import { generateSoul } from './soul.ts';
 import { maybeGenerateReaction, classifyTurn } from './reaction.ts';
 import { randomSeed, rollBuddy } from './roll.ts';
@@ -24,14 +24,11 @@ function defaultVisualState(): BuddyVisualState {
 export default function (pi: ExtensionAPI) {
   let state: BuddyState;
   let visual = defaultVisualState();
-  let timer: ReturnType<typeof setInterval> | undefined;
   let completedTurns = 0;
   let lastReactionTurn = -999;
   let lastReactionAt = 0;
-  let currentCtx: ExtensionContext | null = null;
-
   const requestRender = () => {
-    // Widget auto-updates on its timer; nothing to do here
+    // Editor handles its own render via tui.requestRender in its timer
   };
 
   const save = async () => {
@@ -188,20 +185,12 @@ export default function (pi: ExtensionAPI) {
 
   pi.on('session_start', async (_event, ctx) => {
     state = await loadState(process.cwd());
-    currentCtx = ctx;
 
-    installBuddyWidget(pi, ctx, {
+    installBuddyEditor(pi, ctx, {
       getState: () => state,
       getActiveBuddy: () => activeBuddy(),
       getVisualState: () => visual,
     });
-
-    clearInterval(timer);
-    timer = setInterval(() => {
-      visual.tick += 1;
-      if (visual.bubbleUntil && Date.now() > visual.bubbleUntil) visual.bubbleText = null;
-      if (visual.animationState === 'petted' && Date.now() > visual.heartsUntil) visual.animationState = 'idle';
-    }, 500);
 
     syncStatus(ctx);
   });
@@ -246,7 +235,6 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on('session_shutdown', async (_event, ctx) => {
-    if (timer) clearInterval(timer);
     clearBuddyWidget(ctx);
     await save();
   });
