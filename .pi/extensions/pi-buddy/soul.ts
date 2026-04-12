@@ -5,9 +5,13 @@ import { getHighestStat, getLowestStat } from './roll.ts';
 import { canUseModelSoul, recordModelUsage, TOKEN_POLICY } from './token-policy.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
 
-// Cheap models to try, in preference order
+// Cheap models to try, in preference order (all free on GitHub Copilot)
 const CHEAP_MODEL_IDS = [
-  ['openai', 'gpt-4o'],
+  ['github-copilot', 'gpt-4o'],
+  ['github-copilot', 'gemini-3-flash-preview'],
+  ['github-copilot', 'gpt-5-mini'],
+  ['github-copilot', 'claude-haiku-4.5'],
+  ['github-copilot', 'gpt-5.4-mini'],
 ] as const;
 
 async function findCheapModel(ctx: ExtensionContext): Promise<{ model: Model<Api>; apiKey: string; headers?: Record<string, string> } | null> {
