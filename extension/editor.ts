@@ -62,7 +62,8 @@ function getBuddyDisplay(runtime: BuddyEditorRuntime): {
   const frame = frameToken < 0 ? 0 : frameToken;
 
   const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
-  const spriteWidth = Math.max(...sprite.map(line => line.length));
+  const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
+  const spriteWidth = Math.max(...sprite.map(line => line.length), nameLine.length);
   const showBubble = !!(visual.bubbleText && visual.bubbleUntil > now);
   const showHearts = visual.heartsUntil > now;
   const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
@@ -77,6 +78,7 @@ function getBuddyDisplay(runtime: BuddyEditorRuntime): {
   const panelLines = [
     ...(!heartsInlined && heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
     ...spriteLines.map(line => line.padEnd(spriteWidth)),
+    nameLine.padEnd(spriteWidth),
   ];
 
   const bubbleText = showBubble ? visual.bubbleText! : '';
@@ -170,7 +172,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
         return {
           anchor: 'bottom-right',
           width: Math.max(1, display.overlayWidth),
-          margin: { right: 1, bottom: 3 },
+          margin: { right: 1, bottom: 5 },
           nonCapturing: true,
           visible: (termWidth: number) => termWidth >= 60 && getBuddyDisplay(runtime).visible,
         };
