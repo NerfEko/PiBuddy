@@ -113,9 +113,9 @@ export function installBuddyOverlay(pi: ExtensionAPI, ctx: ExtensionContext, run
       overlay: true,
       overlayOptions: {
         anchor: 'bottom-right',
-        width: 20,
+        width: 22,
         maxHeight: '40%',
-        margin: { bottom: 4, right: 1, top: 0, left: 0 },
+        margin: { bottom: 5, right: 2, top: 0, left: 0 },
         nonCapturing: true,
       },
       onHandle: (handle: any) => {
