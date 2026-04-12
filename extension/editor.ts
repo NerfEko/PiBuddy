@@ -119,7 +119,7 @@ export class BuddyEditor extends CustomEditor {
 
     const panelLines = [
       ...(!heartsInlined && heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
-      ...spriteLines,
+      ...spriteLines.map(line => line.padEnd(spriteWidth)),
       nameLine.padEnd(spriteWidth),
     ];
 
