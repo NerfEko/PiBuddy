@@ -20,31 +20,10 @@ export interface BuddyEditorRuntime {
   getVisualState(): BuddyVisualState;
 }
 
-/** Build a speech bubble */
-function buildBubbleLines(text: string, maxWidth: number): string[] {
-  if (!text || maxWidth < 8) return [];
-  const innerW = Math.max(4, maxWidth - 4);
-  const words = text.split(/\s+/);
-  const wrapped: string[] = [];
-  let cur = '';
-  for (const word of words) {
-    const next = cur ? `${cur} ${word}` : word;
-    if (next.length > innerW && cur) {
-      wrapped.push(cur);
-      cur = word;
-    } else {
-      cur = next;
-    }
-  }
-  if (cur) wrapped.push(cur);
-  const lines = wrapped.slice(0, 3);
-  const w = Math.max(...lines.map(l => l.length));
-  return [
-    `.-${'-'.repeat(w)}-.`,
-    ...lines.map(l => `| ${l.padEnd(w)} |`),
-    `'-${'-'.repeat(w)}-'`,
-    `  \\`,
-  ];
+/** Build a single-line speech bubble */
+function buildBubbleLine(text: string): string {
+  if (!text) return '';
+  return `< ${text} >`;
 }
 
 /** Right-pad a string that may have ANSI to a visible width */
@@ -145,13 +124,24 @@ export class BuddyEditor extends CustomEditor {
       }
     }
 
-    // Prepend overflow lines above the editor (just sprite top, NO bubble here)
+    // Prepend overflow lines above the editor
     const aboveLines: string[] = [];
 
-    // Sprite overflow lines only
+    // Build single-line bubble if active — goes on its own line above everything
+    const showBubble = visual.bubbleText && visual.bubbleUntil > now;
+    if (showBubble) {
+      const bubbleLine = buildBubbleLine(visual.bubbleText!);
+      // Right-align it so it ends just before the sprite area
+      const spriteStart = width - spriteWidth - rightOffset;
+      const bubblePos = Math.max(0, spriteStart - bubbleLine.length - 1);
+      aboveLines.push(' '.repeat(bubblePos) + bubbleLine);
+    }
+
+    // Sprite overflow lines
     for (let i = 0; i < overflowCount; i++) {
-      const pad = Math.max(0, width - panelLines[i]!.length - rightOffset);
-      aboveLines.push(' '.repeat(pad) + panelLines[i]!);
+      const spritePart = panelLines[i]!;
+      const pad = Math.max(0, width - spritePart.length - rightOffset);
+      aboveLines.push(' '.repeat(pad) + spritePart);
     }
 
     if (aboveLines.length > 0) {
