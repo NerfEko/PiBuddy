@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/eko/piBuddy"
+    "url": "https://github.com/NerfEko/PiBuddy"
   },
   "type": "module",
   "pi": {
