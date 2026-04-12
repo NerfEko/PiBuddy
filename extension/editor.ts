@@ -148,16 +148,20 @@ export class BuddyEditor extends CustomEditor {
       }
     }
 
+    // Bubble
+    const bubbleText = showBubble ? visual.bubbleText! : '';
+    const bubbleContent = bubbleText ? buildBubbleLine(bubbleText) : '';
+    const bubbleTopLine = bubbleText ? buildBubbleTop(bubbleText) : '';
+    const bubbleBotLine = bubbleText ? buildBubbleBot(bubbleText) : '';
+
     // Overlay bubble borders onto editor top/bottom border lines
     if (bubbleText) {
       const spriteStart = width - spriteWidth - rightOffset;
       const available = spriteStart - 1;
-      // Top border on first editor line
       if (result.length > 0 && available > bubbleTopLine.length) {
         const bPad = available - bubbleTopLine.length;
         result[0] = overlayRight(' '.repeat(bPad) + bubbleTopLine + ' '.repeat(spriteWidth + 1), result[0]!, width, rightOffset);
       }
-      // Bottom border on last editor line
       if (result.length > 2 && available > bubbleBotLine.length) {
         const bPad = available - bubbleBotLine.length;
         const last = result.length - 1;
@@ -167,10 +171,6 @@ export class BuddyEditor extends CustomEditor {
 
     // Prepend overflow lines above the editor
     const aboveLines: string[] = [];
-    const bubbleText = showBubble ? visual.bubbleText! : '';
-    const bubbleContent = bubbleText ? buildBubbleLine(bubbleText) : '';
-    const bubbleTopLine = bubbleText ? buildBubbleTop(bubbleText) : '';
-    const bubbleBotLine = bubbleText ? buildBubbleBot(bubbleText) : '';
 
     // One overflow line above the editor — bubble text to the left, sprite line to the right
     for (let i = 0; i < overflowCount; i++) {
