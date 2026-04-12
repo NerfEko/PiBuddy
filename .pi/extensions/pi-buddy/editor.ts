@@ -1,6 +1,7 @@
 import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import { truncateToWidth } from '@mariozechner/pi-tui';
 import { buildSidecarLines, type BuddyVisualState } from './sidecar.ts';
+export type { BuddyVisualState } from './sidecar.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
 
 export interface BuddyEditorRuntime {
