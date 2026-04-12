@@ -1,6 +1,6 @@
 # pi-buddy
 
-> **Experimental** — this extension is a work in progress. Expect rough edges, layout quirks, and occasional crashes. Pull requests with improvements are very welcome.
+> **Experimental** — this extension is a work in progress. Expect rough edges and layout quirks. Pull requests with improvements are very welcome.
 
 ![pi-buddy screenshot](buddy.png)
 
