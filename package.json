@@ -1,0 +1,8 @@
+{
+  "name": "pi-buddy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test .pi/extensions/pi-buddy/tests/*.test.ts"
+  }
+}
