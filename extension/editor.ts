@@ -2,7 +2,7 @@ import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import type { ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { visibleWidth } from '@mariozechner/pi-tui';
 import { IDLE_SEQUENCE, SPRITES } from './constants.ts';
-import { renderSprite, substituteEyes } from './sprites.ts';
+import { renderSprite } from './sprites.ts';
 import { starsForRarity } from './theme.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
 
@@ -132,18 +132,19 @@ export class BuddyEditor extends CustomEditor {
     const result = editorLines.map(l => rpad(l, width));
     const rightOffset = 0;
 
-    // Pre-compute max non-blank overflow across all frames so layout is stable during animation
+    // Use the minimum visible overflow across all frames so animation never adds/removes rows.
+    // Taller frames get clipped from the top instead of making the whole layout jump.
     const allFrames = SPRITES[buddy.species];
-    let maxStableOverflow = 0;
-    for (const fr of allFrames) {
-      const frLines = [...fr.map(l => substituteEyes(l, buddy.eye))];
-      // Hearts may replace blank line 0
+    let minStableOverflow = Number.POSITIVE_INFINITY;
+    for (let idx = 0; idx < allFrames.length; idx++) {
+      const frLines = renderSprite(buddy.species, idx, buddy.eye, buddy.hat, false);
       let start = 0;
       while (start < frLines.length && frLines[start]!.trim() === '') start++;
       const overflow = Math.max(0, (frLines.length + 1) - result.length); // +1 for name line
-      const nonBlankOverflow = overflow - start;
-      if (nonBlankOverflow > maxStableOverflow) maxStableOverflow = nonBlankOverflow;
+      const nonBlankOverflow = Math.max(0, overflow - start);
+      minStableOverflow = Math.min(minStableOverflow, nonBlankOverflow);
     }
+    if (!Number.isFinite(minStableOverflow)) minStableOverflow = 0;
 
     // How many panel lines fit in the editor
     const fitsInEditor = Math.min(panelLines.length, result.length);
@@ -155,10 +156,10 @@ export class BuddyEditor extends CustomEditor {
       overflowStart++;
     }
     const trimmedOverflow = rawOverflow - overflowStart;
-    // Use the stable max so layout doesn't shift between animation frames
-    const overflowCount = showBubble ? Math.min(maxStableOverflow, 3) : maxStableOverflow;
-    const panelShift = rawOverflow - Math.min(overflowCount, trimmedOverflow) - Math.max(0, overflowCount - trimmedOverflow);
+    // Idle animation keeps a fixed row count; extra-tall frames are clipped from the top.
+    const overflowCount = showBubble ? Math.max(minStableOverflow, Math.min(trimmedOverflow, 3)) : minStableOverflow;
     const actualOverflow = Math.min(overflowCount, trimmedOverflow);
+    const panelShift = rawOverflow - actualOverflow;
 
     // Paint what fits into editor lines (bottom-aligned), skipping top lines if capped
     for (let i = 0; i < fitsInEditor; i++) {
