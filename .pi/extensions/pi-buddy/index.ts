@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { showBuddyCard, showRosterBrowser } from './card.ts';
 import { registerBuddyCommands } from './commands.ts';
-import { installBuddyEditor, clearBuddyEditor, showBubbleOverlay, type BuddyVisualState } from './editor.ts';
+import { installBuddyEditor, clearBuddyEditor, type BuddyVisualState } from './editor.ts';
 import { generateSoul } from './soul.ts';
 import { maybeGenerateReaction, classifyTurn } from './reaction.ts';
 import { randomSeed, rollBuddy } from './roll.ts';
@@ -152,7 +152,6 @@ export default function (pi: ExtensionAPI) {
         const reaction = petLines[Math.floor(Math.random() * petLines.length)]!;
         visual.bubbleText = reaction;
         visual.bubbleUntil = Date.now() + 4000;
-        if (buddyRuntime) showBubbleOverlay(ctx, buddyRuntime);
         await save();
         requestRender();
         ctx.ui.notify(`${buddy.name} loved that! (petted ${buddy.timesPetted}x)`, 'success');
@@ -306,7 +305,6 @@ export default function (pi: ExtensionAPI) {
       buddy.lastSaid = reaction.text;
       visual.bubbleText = reaction.text;
       visual.bubbleUntil = Date.now() + 10000;
-      if (buddyRuntime) showBubbleOverlay(ctx, buddyRuntime);
       lastReactionAt = Date.now();
       lastReactionTurn = completedTurns;
       await save();
