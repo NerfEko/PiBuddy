@@ -119,10 +119,11 @@ export class BuddyEditor extends CustomEditor {
     // Build sprite + name
     const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
     const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
-    const hearts = visual.heartsUntil > now ? '♥  ♥  ♥' : '';
+    const spriteWidth = Math.max(...sprite.map(l => l.length));
+    const hearts = visual.heartsUntil > now ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
 
-    // Buddy panel lines (bottom-up: name, then sprite, then optional hearts)
-    const panelLines = [...(hearts ? [hearts] : []), ...sprite, nameLine];
+    // Buddy panel lines (hearts on top, then sprite, then name)
+    const panelLines = [...(hearts ? [hearts.padEnd(spriteWidth)] : []), ...sprite, nameLine.padEnd(spriteWidth)];
 
     // Overlay the buddy panel onto the editor lines
     // Name line sits on the last editor line. Sprite extends ABOVE if needed.
