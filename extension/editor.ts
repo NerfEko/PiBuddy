@@ -187,11 +187,12 @@ export class BuddyEditor extends CustomEditor {
       const available = pad - 1;
 
       let bubblePart = '';
-      if (bubbleContent && actualOverflow === 3) {
+      if (bubbleContent && actualOverflow >= 3) {
         if (i === 0) bubblePart = bubbleTopLine;
         else if (i === 1) bubblePart = bubbleContent;
         else if (i === 2) bubblePart = bubbleBotLine;
-      } else if (bubbleContent) {
+      } else if (bubbleContent && i === actualOverflow - 1) {
+        // Only put bubble on the last overflow line when not enough room for full box
         bubblePart = bubbleContent;
       }
 
