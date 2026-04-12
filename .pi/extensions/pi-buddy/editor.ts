@@ -124,30 +124,45 @@ export class BuddyEditor extends CustomEditor {
     // Buddy panel lines (bottom-up: name, then sprite, then optional hearts)
     const panelLines = [...(hearts ? [hearts] : []), ...sprite, nameLine];
 
-    // Position: offset from right edge so buddy isn't crammed into corner
+    // Overlay the buddy panel onto the editor lines
+    // Name line sits on the last editor line. Sprite extends ABOVE if needed.
+    const result = [...editorLines];
     const rightOffset = Math.max(4, Math.floor(width * 0.15));
 
-    // Overlay the buddy panel onto the editor lines
-    // Align so name line is on the last editor line (bottom border)
-    const result = [...editorLines];
-    const panelEnd = result.length; // name sits on last line
-    const panelStart = panelEnd - panelLines.length;
+    // How many panel lines fit in the editor
+    const fitsInEditor = Math.min(panelLines.length, result.length);
+    // Lines that overflow above the editor
+    const overflowCount = panelLines.length - fitsInEditor;
 
-    for (let i = 0; i < panelLines.length; i++) {
-      const lineIdx = panelStart + i;
-      if (lineIdx < 0 || lineIdx >= result.length) continue;
-      result[lineIdx] = overlayRight(result[lineIdx]!, panelLines[i]!, width, rightOffset);
+    // Paint what fits into editor lines (bottom-aligned)
+    for (let i = 0; i < fitsInEditor; i++) {
+      const panelIdx = overflowCount + i;
+      const lineIdx = result.length - fitsInEditor + i;
+      if (lineIdx >= 0 && lineIdx < result.length) {
+        result[lineIdx] = overlayRight(result[lineIdx]!, panelLines[panelIdx]!, width, rightOffset);
+      }
     }
 
-    // If bubble is active, prepend bubble lines ABOVE the editor
+    // Prepend overflow lines above the editor (sprite top + optional bubble)
+    const aboveLines: string[] = [];
+
+    // Bubble goes first (above everything)
     if (visual.bubbleText && visual.bubbleUntil > now) {
       const bubbleLines = buildBubbleLines(visual.bubbleText, 34);
-      // Right-align the bubble lines
-      const rightAligned = bubbleLines.map(line => {
+      for (const line of bubbleLines) {
         const pad = Math.max(0, width - line.length - rightOffset);
-        return ' '.repeat(pad) + line;
-      });
-      return [...rightAligned, ...result];
+        aboveLines.push(' '.repeat(pad) + line);
+      }
+    }
+
+    // Then sprite overflow lines
+    for (let i = 0; i < overflowCount; i++) {
+      const pad = Math.max(0, width - panelLines[i]!.length - rightOffset);
+      aboveLines.push(' '.repeat(pad) + panelLines[i]!);
+    }
+
+    if (aboveLines.length > 0) {
+      return [...aboveLines, ...result];
     }
 
     return result;
