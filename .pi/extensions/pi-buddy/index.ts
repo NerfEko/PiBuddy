@@ -71,13 +71,22 @@ export default function (pi: ExtensionAPI) {
             ? `↑${fmt(usage.estimatedInputTokens)} ↓${fmt(usage.estimatedOutputTokens)}`
             : '';
           const modelName = ctx.model?.id || '';
-          const rightParts = [buddyStr, tokenStr ? `buddy: ${tokenStr}` : '', modelName].filter(Boolean);
+          const rightParts = [modelName].filter(Boolean);
           const right = theme.fg('dim', rightParts.join(' · '));
 
           const { visibleWidth } = require('@mariozechner/pi-tui') as any;
           const { truncateToWidth } = require('@mariozechner/pi-tui') as any;
+
+          // Line 1: original footer (branch · other statuses ... model)
           const pad = ' '.repeat(Math.max(1, width - visibleWidth(left) - visibleWidth(right)));
-          return [truncateToWidth(left + pad + right, width)];
+          const line1 = truncateToWidth(left + pad + right, width);
+
+          // Line 2: buddy info right-aligned
+          const buddyRight = theme.fg('dim', [buddyStr, tokenStr ? `buddy: ${tokenStr}` : ''].filter(Boolean).join(' · '));
+          const pad2 = ' '.repeat(Math.max(0, width - visibleWidth(buddyRight)));
+          const line2 = buddyStr ? truncateToWidth(pad2 + buddyRight, width) : '';
+
+          return line2 ? [line1, line2] : [line1];
         },
       };
     });
