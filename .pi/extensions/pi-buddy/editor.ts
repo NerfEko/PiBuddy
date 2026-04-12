@@ -18,7 +18,7 @@ export interface BuddyEditorRuntime {
   getVisualState(): BuddyVisualState;
 }
 
-/** Build a speech bubble above the sprite */
+/** Build a speech bubble */
 function buildBubbleLines(text: string, maxWidth: number): string[] {
   if (!text || maxWidth < 8) return [];
   const innerW = Math.max(4, maxWidth - 4);
@@ -45,77 +45,97 @@ function buildBubbleLines(text: string, maxWidth: number): string[] {
   ];
 }
 
-function buildWidgetLines(state: BuddyState, buddy: BuddyRecord, visual: BuddyVisualState): string[] {
-  const now = Date.now();
-  const frameToken = visual.animationState === 'idle'
-    ? IDLE_SEQUENCE[visual.tick % IDLE_SEQUENCE.length]!
-    : visual.animationState === 'speaking' ? 2 : 1;
-  const blink = frameToken === -1;
-  const frame = frameToken < 0 ? 0 : frameToken;
+let overlayHandle: any = null;
+let animTimer: ReturnType<typeof setInterval> | undefined;
 
-  const lines: string[] = [];
-
-  // Bubble above sprite
-  if (visual.bubbleText && visual.bubbleUntil > now) {
-    lines.push(...buildBubbleLines(visual.bubbleText, 30));
-  }
-
-  // Hearts
-  if (visual.heartsUntil > now) lines.push('♥  ♥  ♥');
-
-  // Sprite
-  const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
-  lines.push(...sprite);
-
-  // Name line
-  lines.push(`${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`);
-
-  return lines;
-}
-
-let widgetTimer: ReturnType<typeof setInterval> | undefined;
-
-export function installBuddyWidget(pi: ExtensionAPI, ctx: ExtensionContext, runtime: BuddyEditorRuntime): void {
+export function installBuddyOverlay(pi: ExtensionAPI, ctx: ExtensionContext, runtime: BuddyEditorRuntime): void {
   if (!ctx.hasUI) return;
 
-  const update = () => {
-    const state = runtime.getState();
-    const buddy = runtime.getActiveBuddy();
-    const visual = runtime.getVisualState();
+  // Close any existing overlay
+  if (overlayHandle) {
+    try { overlayHandle.hide(); } catch {}
+    overlayHandle = null;
+  }
+  if (animTimer) clearInterval(animTimer);
 
-    // Tick animation
-    visual.tick += 1;
-    if (visual.bubbleUntil && Date.now() > visual.bubbleUntil) visual.bubbleText = null;
-    if (visual.animationState === 'petted' && Date.now() > visual.heartsUntil) visual.animationState = 'idle';
+  // Create a persistent non-capturing overlay anchored bottom-right
+  ctx.ui.custom<void>(
+    (tui, _theme, _kb, _done) => {
+      const component = {
+        render(width: number): string[] {
+          const state = runtime.getState();
+          const buddy = runtime.getActiveBuddy();
+          const visual = runtime.getVisualState();
 
-    if (buddy && !state.settings.hidden) {
-      const lines = buildWidgetLines(state, buddy, visual);
-      // Right-align each line by padding with spaces on the left
-      ctx.ui.setWidget('pi-buddy-sidecar', (_tui: any, _theme: any) => ({
-        render(width: number) {
-          return lines.map(line => {
-            const pad = Math.max(0, width - line.length);
-            return ' '.repeat(pad) + line;
-          });
+          if (!buddy || state.settings.hidden) return [''];
+
+          const now = Date.now();
+          const frameToken = visual.animationState === 'idle'
+            ? IDLE_SEQUENCE[visual.tick % IDLE_SEQUENCE.length]!
+            : visual.animationState === 'speaking' ? 2 : 1;
+          const blink = frameToken === -1;
+          const frame = frameToken < 0 ? 0 : frameToken;
+
+          const lines: string[] = [];
+
+          // Bubble above sprite
+          if (visual.bubbleText && visual.bubbleUntil > now) {
+            lines.push(...buildBubbleLines(visual.bubbleText, width));
+          }
+
+          // Hearts
+          if (visual.heartsUntil > now) lines.push('♥  ♥  ♥');
+
+          // Sprite
+          const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
+          lines.push(...sprite);
+
+          // Name
+          lines.push(`${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`);
+
+          return lines;
         },
         invalidate() {},
-      }), { placement: 'belowEditor' });
-    } else {
-      ctx.ui.setWidget('pi-buddy-sidecar', undefined);
-    }
-  };
+      };
 
-  if (widgetTimer) clearInterval(widgetTimer);
-  widgetTimer = setInterval(update, 500);
-  update();
+      // Start animation timer
+      animTimer = setInterval(() => {
+        const visual = runtime.getVisualState();
+        visual.tick += 1;
+        if (visual.bubbleUntil && Date.now() > visual.bubbleUntil) visual.bubbleText = null;
+        if (visual.animationState === 'petted' && Date.now() > visual.heartsUntil) visual.animationState = 'idle';
+        tui.requestRender();
+      }, 500);
+
+      return component;
+    },
+    {
+      overlay: true,
+      overlayOptions: {
+        anchor: 'bottom-right',
+        width: 20,
+        maxHeight: '40%',
+        margin: { bottom: 4, right: 1, top: 0, left: 0 },
+        nonCapturing: true,
+      },
+      onHandle: (handle: any) => {
+        overlayHandle = handle;
+      },
+    },
+  );
 }
 
-export function clearBuddyWidget(ctx: ExtensionContext): void {
-  if (widgetTimer) {
-    clearInterval(widgetTimer);
-    widgetTimer = undefined;
+export function clearBuddyOverlay(ctx: ExtensionContext): void {
+  if (animTimer) {
+    clearInterval(animTimer);
+    animTimer = undefined;
   }
-  if (ctx.hasUI) {
-    ctx.ui.setWidget('pi-buddy-sidecar', undefined);
+  if (overlayHandle) {
+    try { overlayHandle.hide(); } catch {}
+    overlayHandle = null;
   }
+}
+
+export function requestBuddyRender(): void {
+  // Overlay re-renders on its own timer
 }

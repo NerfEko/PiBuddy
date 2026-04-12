@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { showBuddyCard, showRosterBrowser } from './card.ts';
 import { registerBuddyCommands } from './commands.ts';
-import { installBuddyWidget, clearBuddyWidget, type BuddyVisualState } from './editor.ts';
+import { installBuddyOverlay, clearBuddyOverlay, type BuddyVisualState } from './editor.ts';
 import { generateSoul } from './soul.ts';
 import { maybeGenerateReaction, classifyTurn } from './reaction.ts';
 import { randomSeed, rollBuddy } from './roll.ts';
@@ -184,7 +184,7 @@ export default function (pi: ExtensionAPI) {
   pi.on('session_start', async (_event, ctx) => {
     state = await loadState(process.cwd());
 
-    installBuddyWidget(pi, ctx, {
+    installBuddyOverlay(pi, ctx, {
       getState: () => state,
       getActiveBuddy: () => activeBuddy(),
       getVisualState: () => visual,
@@ -233,7 +233,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on('session_shutdown', async (_event, ctx) => {
-    clearBuddyWidget(ctx);
+    clearBuddyOverlay(ctx);
     await save();
   });
 }
