@@ -102,11 +102,8 @@ export class BuddyEditor extends CustomEditor {
     const buddy = this.runtime.getActiveBuddy();
     const visual = this.runtime.getVisualState();
 
-    // Render editor at FULL width — no squishing
-    const editorLines = super.render(width);
-
     if (!buddy || state.settings.hidden || width < 60) {
-      return editorLines;
+      return super.render(width);
     }
 
     const now = Date.now();
@@ -125,9 +122,13 @@ export class BuddyEditor extends CustomEditor {
     // Buddy panel lines (hearts on top, then sprite, then name)
     const panelLines = [...(hearts ? [hearts.padEnd(spriteWidth)] : []), ...sprite, nameLine.padEnd(spriteWidth)];
 
-    // Overlay the buddy panel onto the editor lines
-    // Name line sits on the last editor line. Sprite extends ABOVE if needed.
-    const result = [...editorLines];
+    // Render editor at reduced width so text wraps before hitting the buddy
+    const buddyReserved = spriteWidth + 2;
+    const editorWidth = Math.max(30, width - buddyReserved);
+    const editorLines = super.render(editorWidth);
+
+    // Pad editor lines back to full width for overlaying
+    const result = editorLines.map(l => rpad(l, width));
     const rightOffset = 0;
 
     // How many panel lines fit in the editor
