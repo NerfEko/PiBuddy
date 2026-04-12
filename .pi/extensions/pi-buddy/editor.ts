@@ -198,7 +198,12 @@ export function showBubbleOverlay(ctx: ExtensionContext, runtime: BuddyEditorRun
         render(width: number): string[] {
           const visual = runtime.getVisualState();
           if (!visual.bubbleText || visual.bubbleUntil <= Date.now()) return [''];
-          return buildBubbleLines(visual.bubbleText, Math.min(width, 34));
+          const lines = buildBubbleLines(visual.bubbleText, Math.min(width, 34));
+          // Right-align within the overlay
+          return lines.map(l => {
+            const pad = Math.max(0, width - l.length);
+            return ' '.repeat(pad) + l;
+          });
         },
         invalidate() {},
       };
@@ -218,7 +223,7 @@ export function showBubbleOverlay(ctx: ExtensionContext, runtime: BuddyEditorRun
         anchor: 'bottom-right',
         width: 36,
         maxHeight: '20%',
-        margin: { bottom: 10, right: 1, top: 0, left: 0 },
+        margin: { bottom: 8, right: 0, top: 0, left: 0 },
         nonCapturing: true,
       },
       onHandle: (handle: any) => {
