@@ -328,6 +328,7 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify(`Buddy model: ${key}`, 'success');
       }
     },
+  });
 
   pi.on('session_start', async (_event, ctx) => {
     state = await loadState();
