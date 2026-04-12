@@ -100,10 +100,16 @@ export class BuddyEditor extends CustomEditor {
     const showHearts = visual.heartsUntil > now;
     const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, spriteWidth) : '';
 
+    // Skip blank top sprite lines to save vertical space
+    const trimmedSprite = [...sprite];
+    while (trimmedSprite.length > 1 && trimmedSprite[0]!.trim() === '') {
+      trimmedSprite.shift();
+    }
+
     // Hearts always above sprite when active
     const panelLines = [
       ...(heartsStr ? [heartsStr.padEnd(spriteWidth)] : []),
-      ...sprite,
+      ...trimmedSprite,
       nameLine.padEnd(spriteWidth),
     ];
 
