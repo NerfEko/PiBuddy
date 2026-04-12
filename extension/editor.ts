@@ -111,7 +111,7 @@ class BuddyOverlayComponent {
   render(width: number): string[] {
     const display = getBuddyDisplay(this.runtime);
     if (!display.visible) return [];
-    return display.lines.map(line => lpad(line, width));
+    return display.lines;
   }
 
   invalidate(): void {}
