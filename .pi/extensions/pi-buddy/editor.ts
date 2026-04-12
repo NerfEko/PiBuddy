@@ -54,23 +54,15 @@ function rpad(str: string, width: number): string {
   return str + ' '.repeat(width - vw);
 }
 
-/** Overwrite the right side of a line with plain text */
-function overlayRight(baseLine: string, overlayStr: string, totalWidth: number): string {
+/** Overwrite a region of a line with plain text at a given column offset from right */
+function overlayRight(baseLine: string, overlayStr: string, totalWidth: number, rightOffset: number): string {
   const overlayLen = overlayStr.length;
-  const startCol = totalWidth - overlayLen;
-  if (startCol <= 0) return overlayStr.slice(0, totalWidth);
+  const startCol = totalWidth - overlayLen - rightOffset;
+  if (startCol <= 0) return baseLine;
 
-  // We need to place overlayStr at the right edge.
-  // Since baseLine has ANSI, we can't just slice by index.
-  // Strategy: pad baseLine to totalWidth, then truncate to startCol and append overlay
   const padded = rpad(baseLine, totalWidth);
-  const baseVW = visibleWidth(padded);
 
-  // Simple approach: the base line rendered, we cut visible chars from right
-  // and replace with our overlay. For ANSI lines this is approximate but
-  // works because overlay text is plain ASCII.
-  // Just use the raw string positions as best effort.
-  const parts: string[] = [];
+  // Walk the string tracking visible char positions to find cut point
   let visCount = 0;
   let cutIndex = 0;
   let inEsc = false;
@@ -132,16 +124,19 @@ export class BuddyEditor extends CustomEditor {
     // Buddy panel lines (bottom-up: name, then sprite, then optional hearts)
     const panelLines = [...(hearts ? [hearts] : []), ...sprite, nameLine];
 
-    // Overlay the buddy panel onto the RIGHT side of the editor lines
-    // The panel sits within the editor box area only
+    // Position: offset from right edge so buddy isn't crammed into corner
+    const rightOffset = Math.max(4, Math.floor(width * 0.15));
+
+    // Overlay the buddy panel onto the editor lines
+    // Align so name line is on the last editor line (bottom border)
     const result = [...editorLines];
-    const editorEnd = result.length; // last line is bottom border
-    const panelStart = Math.max(0, editorEnd - panelLines.length);
+    const panelEnd = result.length; // name sits on last line
+    const panelStart = panelEnd - panelLines.length;
 
     for (let i = 0; i < panelLines.length; i++) {
       const lineIdx = panelStart + i;
       if (lineIdx < 0 || lineIdx >= result.length) continue;
-      result[lineIdx] = overlayRight(result[lineIdx]!, '  ' + panelLines[i]!, width);
+      result[lineIdx] = overlayRight(result[lineIdx]!, panelLines[i]!, width, rightOffset);
     }
 
     // If bubble is active, prepend bubble lines ABOVE the editor
@@ -149,7 +144,7 @@ export class BuddyEditor extends CustomEditor {
       const bubbleLines = buildBubbleLines(visual.bubbleText, 34);
       // Right-align the bubble lines
       const rightAligned = bubbleLines.map(line => {
-        const pad = Math.max(0, width - line.length - 2);
+        const pad = Math.max(0, width - line.length - rightOffset);
         return ' '.repeat(pad) + line;
       });
       return [...rightAligned, ...result];
