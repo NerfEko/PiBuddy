@@ -42,6 +42,8 @@ function getBubbleRenderWidth(text: string, spriteWidth: number): number {
   return Math.max(24, Math.min(34, Math.max(text.length + 4, spriteWidth + 14)));
 }
 
+const OVERLAY_WIDTH = 48;
+
 function getBuddyDisplay(runtime: BuddyEditorRuntime): {
   visible: boolean;
   reservedWidth: number;
@@ -99,8 +101,8 @@ function getBuddyDisplay(runtime: BuddyEditorRuntime): {
 
   return {
     visible: true,
-    reservedWidth: spriteWidth + 2,
-    overlayWidth: bubbleWidth > 0 ? bubbleWidth + 1 + spriteWidth : spriteWidth,
+    reservedWidth: OVERLAY_WIDTH,
+    overlayWidth: OVERLAY_WIDTH,
     lines,
   };
 }
@@ -111,17 +113,11 @@ class BuddyOverlayComponent {
   render(width: number): string[] {
     const display = getBuddyDisplay(this.runtime);
     if (!display.visible) return [];
-    // Right-align content within the fixed-width overlay box.
-    // Sprite-only lines get left-padded so the sprite stays at the right edge.
-    // Bubble+sprite lines fill more of the width naturally.
-    const contentWidth = widest(display.lines);
-    const pad = Math.max(0, width - contentWidth);
+    // Right-align: pad left so sprite stays at right edge of the box
     return display.lines.map(line => {
       const vw = visibleWidth(line);
-      const linePad = Math.max(0, width - vw);
-      // Don't pad with spaces — just position the content at the right edge
-      if (linePad > 0) return ' '.repeat(linePad) + line;
-      return line.slice(0, width);
+      if (vw >= width) return line.slice(0, width);
+      return ' '.repeat(width - vw) + line;
     });
   }
 
