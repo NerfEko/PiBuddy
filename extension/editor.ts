@@ -127,7 +127,7 @@ export class BuddyEditor extends CustomEditor {
       const maxBubbleLen = width - reservedWidth - 4;
       let text = visual.bubbleText!;
       if (text.length > maxBubbleLen) text = text.slice(0, Math.max(1, maxBubbleLen - 1)) + '…';
-      const bubbleLine = `| ${text} |`;
+      const bubbleLine = `[ ${text} ]-`;
       const padded = rpad(' '.repeat(Math.max(0, width - reservedWidth - visibleWidth(bubbleLine))) + bubbleLine, width);
       result.unshift(padded);
     } else {
