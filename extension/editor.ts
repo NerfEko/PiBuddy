@@ -1,6 +1,7 @@
 import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import { visibleWidth, type OverlayHandle } from '@mariozechner/pi-tui';
 import { IDLE_SEQUENCE } from './constants.ts';
+import { renderReactionBubble } from './bubble.ts';
 import { renderSprite } from './sprites.ts';
 import { starsForRarity } from './theme.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
@@ -20,19 +21,6 @@ export interface BuddyEditorRuntime {
 }
 
 let buddyOverlayHandle: OverlayHandle | undefined;
-
-function buildBubbleLine(text: string): string {
-  if (!text) return '';
-  return `| ${text} |`;
-}
-
-function buildBubbleTop(text: string): string {
-  return `.-${'-'.repeat(text.length + 2)}-.`;
-}
-
-function buildBubbleBot(text: string): string {
-  return `'-${'-'.repeat(text.length + 2)}-'`;
-}
 
 function rpad(str: string, width: number): string {
   const vw = visibleWidth(str);
@@ -83,7 +71,7 @@ function getBuddyDisplay(runtime: BuddyEditorRuntime): {
 
   const bubbleText = showBubble ? visual.bubbleText! : '';
   const bubbleLines = bubbleText
-    ? [buildBubbleTop(bubbleText), buildBubbleLine(bubbleText), buildBubbleBot(bubbleText)]
+    ? renderReactionBubble(bubbleText, Math.max(18, Math.min(28, spriteWidth + 12)))
     : [];
   const bubbleWidth = bubbleLines.length > 0 ? Math.max(...bubbleLines.map(line => line.length)) : 0;
 
