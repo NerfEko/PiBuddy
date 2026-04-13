@@ -1,5 +1,6 @@
 import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import { visibleWidth, type OverlayHandle } from '@mariozechner/pi-tui';
+import { clampBubbleTextToTerminal, getBuddyDisplayWidth } from './bubble.ts';
 import { IDLE_SEQUENCE } from './constants.ts';
 import { renderSprite } from './sprites.ts';
 import { starsForRarity } from './theme.ts';
@@ -11,6 +12,7 @@ export interface BuddyVisualState {
   bubbleUntil: number;
   heartsUntil: number;
   tick: number;
+  lastEditorWidth: number;
 }
 
 export interface BuddyEditorRuntime {
@@ -127,6 +129,8 @@ export class BuddyEditor extends CustomEditor {
       return super.render(width);
     }
 
+    visual.lastEditorWidth = width;
+
     const display = getSpriteDisplay(this.runtime);
     const reservedWidth = display.displayWidth;
     const editorWidth = Math.max(30, width - reservedWidth);
@@ -138,9 +142,7 @@ export class BuddyEditor extends CustomEditor {
     const now = Date.now();
     const showBubble = visual.bubbleText && visual.bubbleUntil > now;
     if (showBubble) {
-      const maxBubbleLen = width - reservedWidth - 4;
-      let text = visual.bubbleText!;
-      if (text.length > maxBubbleLen) text = text.slice(0, Math.max(1, maxBubbleLen - 1)) + '…';
+      const text = clampBubbleTextToTerminal(visual.bubbleText!, width, buddy);
       const bubbleLine = `[ ${text} ]-`;
       const padded = rpad(' '.repeat(Math.max(0, width - reservedWidth - visibleWidth(bubbleLine))) + bubbleLine, width);
       result.unshift(padded);
@@ -173,7 +175,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
       overlay: true,
       overlayOptions: {
         anchor: 'bottom-right' as const,
-        width: getSpriteDisplay(runtime).displayWidth,
+        width: runtime.getActiveBuddy() ? getBuddyDisplayWidth(runtime.getActiveBuddy()!) : 0,
         margin: { right: 1, bottom: 2 },
         nonCapturing: true,
         visible: (termWidth: number) => termWidth >= 60 && getSpriteDisplay(runtime).visible,

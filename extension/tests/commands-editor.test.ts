@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { getBubbleTextCharLimit } from '../bubble.ts';
 import { parseBuddyCommand } from '../commands.ts';
 import { createDefaultState } from '../state.ts';
 import { buildSidecarLines } from '../sidecar.ts';
@@ -9,6 +10,29 @@ test('buddy command parser handles switch, test, and default', () => {
   assert.deepEqual(parseBuddyCommand('switch Nova Duck'), { action: 'switch', value: 'Nova Duck' });
   assert.deepEqual(parseBuddyCommand('pet'), { action: 'pet' });
   assert.deepEqual(parseBuddyCommand('test verify model reaction'), { action: 'test', value: 'verify model reaction' });
+});
+
+test('bubble text limit grows with terminal width up to a cap', () => {
+  const buddy = {
+    id: 'duck-1',
+    seed: 1,
+    createdAt: new Date().toISOString(),
+    species: 'duck' as const,
+    rarity: 'epic' as const,
+    eye: '·' as const,
+    hat: 'none' as const,
+    shiny: true,
+    stats: { DEBUGGING: 88, PATIENCE: 20, CHAOS: 40, WISDOM: 55, SNARK: 33 },
+    name: 'Nova Duck',
+    personality: 'cheerful',
+    soulSource: 'fallback' as const,
+  };
+  const narrow = getBubbleTextCharLimit(80, buddy);
+  const wide = getBubbleTextCharLimit(140, buddy);
+  const huge = getBubbleTextCharLimit(240, buddy);
+  assert.ok(narrow < wide);
+  assert.ok(wide <= 90);
+  assert.equal(huge, 90);
 });
 
 test('sidecar builder renders compact and wide modes', () => {

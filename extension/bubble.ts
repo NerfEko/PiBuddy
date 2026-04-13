@@ -1,3 +1,11 @@
+import { renderSprite } from './sprites.ts';
+import type { BuddyRecord } from './state.ts';
+import { starsForRarity } from './theme.ts';
+
+const visibleWidth = (text: string) => text.length;
+const BUBBLE_CHROME_WIDTH = visibleWidth('[  ]-');
+const MAX_BUBBLE_TEXT_CHARS = 90;
+
 export function wrapText(text: string, width: number): string[] {
   const words = text.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];
@@ -27,4 +35,30 @@ export function renderReactionBubble(text: string, width = 22): string[] {
 
 export function renderHearts(): string[] {
   return ['  ♥  ♥  ♥  '];
+}
+
+export function getBuddyDisplayWidth(buddy: BuddyRecord): number {
+  const sprite = renderSprite(buddy.species, 0, buddy.eye, buddy.hat, false);
+  const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
+  const nameVW = visibleWidth(nameLine);
+  const nonBlank = sprite.filter((l) => l.trim().length > 0);
+  const leftIndent = nonBlank.length > 0
+    ? Math.min(...nonBlank.map((l) => l.length - l.trimStart().length))
+    : 0;
+  const trimmedLines = sprite.map((l) => l.slice(leftIndent).trimEnd());
+  const visualSpriteWidth = Math.max(...trimmedLines.map((l) => visibleWidth(l)), 1);
+  return Math.max(visualSpriteWidth, nameVW);
+}
+
+export function getBubbleTextCharLimit(termWidth: number, buddy: BuddyRecord, hardCap = MAX_BUBBLE_TEXT_CHARS): number {
+  const reservedWidth = getBuddyDisplayWidth(buddy);
+  const availableWidth = Math.max(0, termWidth - reservedWidth);
+  const fitLimit = Math.max(1, availableWidth - BUBBLE_CHROME_WIDTH);
+  return Math.max(1, Math.min(hardCap, fitLimit));
+}
+
+export function clampBubbleTextToTerminal(text: string, termWidth: number, buddy: BuddyRecord, hardCap = MAX_BUBBLE_TEXT_CHARS): string {
+  const limit = getBubbleTextCharLimit(termWidth, buddy, hardCap);
+  if (text.length <= limit) return text;
+  return text.slice(0, Math.max(1, limit - 1)) + '…';
 }

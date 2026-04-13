@@ -1,4 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
+import { clampBubbleTextToTerminal, getBubbleTextCharLimit } from './bubble.ts';
 import { showBuddyCard, showRosterBrowser } from './card.ts';
 import { registerBuddyCommands } from './commands.ts';
 import { installBuddyEditor, clearBuddyEditor, type BuddyVisualState } from './editor.ts';
@@ -18,6 +19,7 @@ function defaultVisualState(): BuddyVisualState {
     bubbleUntil: 0,
     heartsUntil: 0,
     tick: 0,
+    lastEditorWidth: 80,
   };
 }
 
@@ -36,6 +38,10 @@ export default function (pi: ExtensionAPI) {
   };
 
   const activeBuddy = () => getActiveBuddy(state);
+  const fitBubbleText = (buddy: BuddyRecord, text: string) =>
+    clampBubbleTextToTerminal(text, visual.lastEditorWidth || 80, buddy);
+  const bubbleCharLimit = (buddy: BuddyRecord) =>
+    getBubbleTextCharLimit(visual.lastEditorWidth || 80, buddy);
 
   let lastInstalledBuddyId: string | null | undefined = undefined;
 
@@ -207,7 +213,7 @@ export default function (pi: ExtensionAPI) {
           `*vibrates with joy*`, `More pets please!`, `*sparkles*`,
         ];
         const reaction = petLines[Math.floor(Math.random() * petLines.length)]!;
-        visual.bubbleText = reaction;
+        visual.bubbleText = fitBubbleText(buddy, reaction);
         visual.bubbleUntil = Date.now() + 4000;
         await save();
         requestRender();
@@ -348,12 +354,13 @@ export default function (pi: ExtensionAPI) {
       visual.bubbleUntil = Date.now() + 15000;
       requestRender();
 
-      const result = await testBuddyModelReaction(ctx, state, buddy, query);
+      const result = await testBuddyModelReaction(ctx, state, buddy, query, bubbleCharLimit(buddy));
       visual.animationState = 'idle';
 
       if (result.ok) {
-        buddy.lastSaid = result.text;
-        visual.bubbleText = result.text;
+        const fitted = fitBubbleText(buddy, result.text);
+        buddy.lastSaid = fitted;
+        visual.bubbleText = fitted;
         visual.bubbleUntil = Date.now() + 10000;
         await save();
         requestRender();
@@ -421,10 +428,11 @@ export default function (pi: ExtensionAPI) {
       return { ...tr, args: call?.arguments };
     });
     const summary = classifyTurn({ assistantText, toolResults: toolResultsWithArgs });
-    const reaction = await maybeGenerateReaction(ctx, state, buddy, summary, completedTurns, lastReactionTurn, lastReactionAt);
+    const reaction = await maybeGenerateReaction(ctx, state, buddy, summary, completedTurns, lastReactionTurn, lastReactionAt, bubbleCharLimit(buddy));
     if (reaction) {
-      buddy.lastSaid = reaction.text;
-      visual.bubbleText = reaction.text;
+      const fitted = fitBubbleText(buddy, reaction.text);
+      buddy.lastSaid = fitted;
+      visual.bubbleText = fitted;
       visual.bubbleUntil = Date.now() + 10000;
       lastReactionAt = Date.now();
       lastReactionTurn = completedTurns;

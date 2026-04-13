@@ -12,7 +12,7 @@ export type BuddyModelReactionTestResult =
   | { ok: true; text: string; modelKey: string }
   | { ok: false; reason: 'no-model' | 'aborted' | 'error' | 'empty'; modelKey?: string; error?: string };
 
-function buildReactionPrompts(buddy: BuddyRecord, summary: TurnSummary): { prompt: string; sysPrompt: string } {
+function buildReactionPrompts(buddy: BuddyRecord, summary: TurnSummary, maxChars = 90): { prompt: string; sysPrompt: string } {
   const high = getHighestStat(buddy.stats);
   const low = getLowestStat(buddy.stats);
   const contextParts = [
@@ -31,7 +31,7 @@ function buildReactionPrompts(buddy: BuddyRecord, summary: TurnSummary): { promp
   if (buddy.lastSaid)
     contextParts.push(`Your last reaction was: "${buddy.lastSaid}" — don't repeat it.`);
   contextParts.push(
-    `React as ${buddy.name} in one short line. Be specific to what just happened — mention files, errors, or results if relevant. Stay in character. Max 90 chars. No quotes. No markdown.`
+    `React as ${buddy.name} in one short line. Be specific to what just happened — mention files, errors, or results if relevant. Stay in character. Max ${maxChars} chars. No quotes. No markdown.`
   );
   return {
     prompt: contextParts.join('\n'),
@@ -44,11 +44,12 @@ async function generateModelReaction(
   state: BuddyState,
   buddy: BuddyRecord,
   summary: TurnSummary,
+  maxChars = 90,
 ): Promise<BuddyModelReactionTestResult> {
   const cheap = await findCheapModel(ctx, state);
   if (!cheap) return { ok: false, reason: 'no-model' };
 
-  const { prompt, sysPrompt } = buildReactionPrompts(buddy, summary);
+  const { prompt, sysPrompt } = buildReactionPrompts(buddy, summary, maxChars);
   const modelKey = `${cheap.model.provider}/${cheap.model.id}`;
   const userMessage: UserMessage = {
     role: 'user',
@@ -71,7 +72,7 @@ async function generateModelReaction(
       .map((part) => part.text)
       .join(' ')
       .trim()
-      .slice(0, 120);
+      .slice(0, Math.max(1, maxChars));
 
     recordModelUsage(state, response.usage.input || 0, response.usage.output || 0, 'reaction');
     return text ? { ok: true, text, modelKey } : { ok: false, reason: 'empty', modelKey };
@@ -90,6 +91,7 @@ export async function testBuddyModelReaction(
   state: BuddyState,
   buddy: BuddyRecord,
   scenario?: string,
+  maxChars = 90,
 ): Promise<BuddyModelReactionTestResult> {
   const summary = classifyTurn({
     assistantText: scenario?.trim() || 'Updated extension/reaction.ts, removed fallback reactions, and tests passed.',
@@ -98,7 +100,7 @@ export async function testBuddyModelReaction(
       { toolName: 'bash', content: '13 tests passed' },
     ],
   });
-  return generateModelReaction(ctx, state, buddy, summary);
+  return generateModelReaction(ctx, state, buddy, summary, maxChars);
 }
 
 export async function maybeGenerateReaction(
@@ -109,6 +111,7 @@ export async function maybeGenerateReaction(
   completedTurns: number,
   lastReactionTurn: number,
   lastReactionAt: number,
+  maxChars = 90,
 ): Promise<{ text: string; source: 'local' | 'model' } | null> {
   if (state.settings.hidden || state.settings.muted || !state.settings.reactionEnabled) return null;
   if (state.settings.reactionMode === 'off' || state.settings.reactionMode !== 'cheap-model') return null;
@@ -126,6 +129,6 @@ export async function maybeGenerateReaction(
   }
   if (Math.random() >= 0.85) return null;  // skip ~15% to avoid every single turn
 
-  const result = await generateModelReaction(ctx, state, buddy, summary);
+  const result = await generateModelReaction(ctx, state, buddy, summary, maxChars);
   return result.ok ? { text: result.text, source: 'model' } : null;
 }
