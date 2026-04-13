@@ -3,7 +3,7 @@ import { showBuddyCard, showRosterBrowser } from './card.ts';
 import { registerBuddyCommands } from './commands.ts';
 import { installBuddyEditor, clearBuddyEditor, type BuddyVisualState } from './editor.ts';
 import { generateSoul } from './soul.ts';
-import { maybeGenerateReaction, classifyTurn } from './reaction.ts';
+import { maybeGenerateReaction, classifyTurn, testBuddyModelReaction } from './reaction.ts';
 import { randomSeed, rollBuddy } from './roll.ts';
 import { getActiveBuddy, loadState, saveState, type BuddyRecord, type BuddyState } from './state.ts';
 
@@ -336,6 +336,42 @@ export default function (pi: ExtensionAPI) {
         await save();
         ctx.ui.notify(`Buddy model: ${key}`, 'success');
       }
+    },
+    async test(ctx, query) {
+      const buddy = activeBuddy();
+      if (!buddy) {
+        ctx.ui.notify('No active buddy yet. Use /buddy hatch.', 'info');
+        return;
+      }
+      visual.animationState = 'thinking';
+      visual.bubbleText = '...';
+      visual.bubbleUntil = Date.now() + 15000;
+      requestRender();
+
+      const result = await testBuddyModelReaction(ctx, state, buddy, query);
+      visual.animationState = 'idle';
+
+      if (result.ok) {
+        buddy.lastSaid = result.text;
+        visual.bubbleText = result.text;
+        visual.bubbleUntil = Date.now() + 10000;
+        await save();
+        requestRender();
+        ctx.ui.notify(`Buddy AI test passed via ${result.modelKey}`, 'success');
+        return;
+      }
+
+      const failureText = result.reason === 'no-model'
+        ? 'No AI model available.'
+        : result.reason === 'empty'
+          ? 'AI returned no text.'
+          : result.reason === 'aborted'
+            ? 'AI test was aborted.'
+            : `AI test failed${result.modelKey ? ` via ${result.modelKey}` : ''}.`;
+      visual.bubbleText = null;
+      visual.bubbleUntil = 0;
+      requestRender();
+      ctx.ui.notify(result.error ? `${failureText} ${result.error}` : failureText, 'error');
     },
   });
 

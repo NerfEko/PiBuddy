@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
 
-export type BuddyCommandAction = 'default' | 'hatch' | 'list' | 'switch' | 'card' | 'pet' | 'mute' | 'unmute' | 'off' | 'on' | 'reroll' | 'spawn' | 'rename' | 'delete' | 'model';
+export type BuddyCommandAction = 'default' | 'hatch' | 'list' | 'switch' | 'card' | 'pet' | 'mute' | 'unmute' | 'off' | 'on' | 'reroll' | 'spawn' | 'rename' | 'delete' | 'model' | 'test';
 
 export interface BuddyCommand {
   action: BuddyCommandAction;
@@ -20,8 +20,10 @@ export interface BuddyCommandRuntime {
   on(ctx: any): Promise<void>;
   spawn(ctx: any, query: string): Promise<void>;
   rename(ctx: any, query: string): Promise<void>;
+  reroll(ctx: any): Promise<void>;
   deleteBuddy(ctx: any): Promise<void>;
   model(ctx: any): Promise<void>;
+  test(ctx: any, query: string): Promise<void>;
 }
 
 export function parseBuddyCommand(args?: string): BuddyCommand {
@@ -42,6 +44,8 @@ export function parseBuddyCommand(args?: string): BuddyCommand {
     case 'delete':
     case 'model':
       return { action: head };
+    case 'test':
+      return { action: head, value };
     case 'switch':
     case 'spawn':
     case 'rename':
@@ -83,11 +87,13 @@ export async function executeBuddyCommand(command: BuddyCommand, ctx: any, runti
       return runtime.deleteBuddy(ctx);
     case 'model':
       return runtime.model(ctx);
+    case 'test':
+      return runtime.test(ctx, command.value || '');
   }
 }
 
 export function registerBuddyCommands(pi: ExtensionAPI, runtime: BuddyCommandRuntime): void {
-  const subcommands = ['hatch', 'list', 'switch', 'card', 'pet', 'mute', 'unmute', 'off', 'on', 'reroll', 'spawn', 'rename', 'delete', 'model'];
+  const subcommands = ['hatch', 'list', 'switch', 'card', 'pet', 'mute', 'unmute', 'off', 'on', 'reroll', 'spawn', 'rename', 'delete', 'model', 'test'];
   const speciesList = ['duck','goose','blob','cat','dragon','octopus','owl','penguin','turtle','snail','ghost','axolotl','capybara','cactus','robot','rabbit','mushroom','chonk'];
 
   pi.registerCommand('buddy', {

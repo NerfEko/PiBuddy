@@ -4,10 +4,11 @@ import { parseBuddyCommand } from '../commands.ts';
 import { createDefaultState } from '../state.ts';
 import { buildSidecarLines } from '../sidecar.ts';
 
-test('buddy command parser handles switch and default', () => {
+test('buddy command parser handles switch, test, and default', () => {
   assert.deepEqual(parseBuddyCommand(''), { action: 'default' });
   assert.deepEqual(parseBuddyCommand('switch Nova Duck'), { action: 'switch', value: 'Nova Duck' });
   assert.deepEqual(parseBuddyCommand('pet'), { action: 'pet' });
+  assert.deepEqual(parseBuddyCommand('test verify model reaction'), { action: 'test', value: 'verify model reaction' });
 });
 
 test('sidecar builder renders compact and wide modes', () => {
