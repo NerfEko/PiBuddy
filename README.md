@@ -45,6 +45,7 @@ Then do `/reload` or restart Pi. On first load, use `/buddy hatch` to get your f
 | `/buddy reroll` | Hatch another random buddy |
 | `/buddy mute` / `/buddy unmute` | Toggle reactions |
 | `/buddy off` / `/buddy on` | Hide or show the buddy |
+| `/buddy model` | Pick which model to use for reactions |
 
 Tab completion works on all subcommands and species names.
 
@@ -58,12 +59,18 @@ Buddy AI uses a cheap model auto-detected from your configured providers, in thi
 4. OpenAI: gpt-4o-mini, gpt-4o
 5. Falls back to your active model if none of the above are available
 
+Use `/buddy model` to override the auto-detected model.
+
 All model calls are optional. The buddy works fully offline with local fallback reactions and names.
+
+## Reactions
+
+Reactions are generated using the buddy's name, personality, stats, and a summary of what just happened — including what files changed and what the AI said. This keeps reactions specific to the work rather than generic.
 
 ## Token usage
 
 - Soul generation: around 120-220 tokens, once per hatch
-- Reactions: around 50-100 tokens per turn, 70% chance, 1 turn cooldown
+- Reactions: around 60-120 tokens per turn, ~70% chance, 1 turn cooldown
 - Normal sessions with no new hatches: 0 tokens
 
 ## State
