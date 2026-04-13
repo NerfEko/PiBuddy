@@ -4,9 +4,9 @@ import { findCheapModel } from './cheap-model.ts';
 import { getHighestStat, getLowestStat } from './roll.ts';
 import { canUseModelReaction, recordModelUsage, TOKEN_POLICY } from './token-policy.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
-import { classifyTurn, generateLocalReaction, type TurnSummary } from './reaction-core.ts';
+import { classifyTurn, type TurnSummary } from './reaction-core.ts';
 
-export { classifyTurn, generateLocalReaction } from './reaction-core.ts';
+export { classifyTurn } from './reaction-core.ts';
 export async function maybeGenerateReaction(
   ctx: ExtensionContext,
   state: BuddyState,
@@ -17,15 +17,10 @@ export async function maybeGenerateReaction(
   lastReactionAt: number,
 ): Promise<{ text: string; source: 'local' | 'model' } | null> {
   if (state.settings.hidden || state.settings.muted || !state.settings.reactionEnabled) return null;
-  if (state.settings.reactionMode === 'off') return null;
-
-  const local = generateLocalReaction(buddy, summary);
-  if (state.settings.reactionMode !== 'cheap-model') {
-    return Math.random() < 0.3 ? { text: local, source: 'local' } : null;
-  }
+  if (state.settings.reactionMode === 'off' || state.settings.reactionMode !== 'cheap-model') return null;
 
   const cheap = await findCheapModel(ctx, state);
-  if (!cheap) return Math.random() < 0.3 ? { text: local, source: 'local' } : null;
+  if (!cheap) return null;
   if (
     !canUseModelReaction({
       state,
@@ -35,7 +30,7 @@ export async function maybeGenerateReaction(
       noteworthy: summary.noteworthy,
     })
   ) {
-    return Math.random() < 0.3 ? { text: local, source: 'local' } : null;
+    return null;
   }
   if (Math.random() >= 0.85) return null;  // skip ~15% to avoid every single turn
 
@@ -75,7 +70,7 @@ export async function maybeGenerateReaction(
       { apiKey: cheap.apiKey, headers: cheap.headers, signal: ctx.signal, maxTokens: TOKEN_POLICY.reactionOutputHardCap },
     );
 
-    if (response.stopReason === 'aborted' || response.stopReason === 'error') return { text: local, source: 'local' };
+    if (response.stopReason === 'aborted' || response.stopReason === 'error') return null;
     const text = response.content
       .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
       .map((part) => part.text)
@@ -83,10 +78,9 @@ export async function maybeGenerateReaction(
       .trim()
       .slice(0, 120);
     recordModelUsage(state, response.usage.input || 0, response.usage.output || 0, 'reaction');
-    return text ? { text, source: 'model' } : { text: local, source: 'local' };
+    return text ? { text, source: 'model' } : null;
   } catch (err) {
-    // Log so we can see if model calls are failing
     console.error('[pi-buddy] reaction model error:', err instanceof Error ? err.message : err);
-    return { text: local, source: 'local' };
+    return null;
   }
 }
