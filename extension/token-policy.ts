@@ -3,8 +3,8 @@ import type { BuddyState } from './state.ts';
 export const TOKEN_POLICY = {
   soulGenerationTargetOutput: 120,
   soulGenerationHardCap: 220,
-  reactionOutputTarget: 24,
-  reactionOutputHardCap: 96,
+  reactionOutputTarget: 48,
+  reactionOutputHardCap: 160,
   reactionInputBudget: 160,
   maxBuddyModelCallsPerSession: 50,
   maxReactionCallsPerSession: 30,

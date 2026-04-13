@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getBubbleTextCharLimit } from '../bubble.ts';
+import { getBubbleTextCharLimit, getBuddyDisplayWidth } from '../bubble.ts';
 import { parseBuddyCommand } from '../commands.ts';
 import { createDefaultState } from '../state.ts';
 import { buildSidecarLines } from '../sidecar.ts';
@@ -12,7 +12,7 @@ test('buddy command parser handles switch, test, and default', () => {
   assert.deepEqual(parseBuddyCommand('test verify model reaction'), { action: 'test', value: 'verify model reaction' });
 });
 
-test('bubble text limit grows with terminal width up to a cap', () => {
+test('bubble text limit uses about two thirds of available line width', () => {
   const buddy = {
     id: 'duck-1',
     seed: 1,
@@ -27,12 +27,18 @@ test('bubble text limit grows with terminal width up to a cap', () => {
     personality: 'cheerful',
     soulSource: 'fallback' as const,
   };
+  const reserved = getBuddyDisplayWidth(buddy) + 1;
+  const narrowFit = Math.max(1, (80 - reserved) - '[  ]-'.length);
+  const wideFit = Math.max(1, (140 - reserved) - '[  ]-'.length);
+  const hugeFit = Math.max(1, (240 - reserved) - '[  ]-'.length);
   const narrow = getBubbleTextCharLimit(80, buddy);
   const wide = getBubbleTextCharLimit(140, buddy);
   const huge = getBubbleTextCharLimit(240, buddy);
+  assert.equal(narrow, Math.floor(narrowFit * 2 / 3));
+  assert.equal(wide, Math.floor(wideFit * 2 / 3));
+  assert.equal(huge, Math.floor(hugeFit * 2 / 3));
   assert.ok(narrow < wide);
-  assert.ok(wide <= 90);
-  assert.equal(huge, 90);
+  assert.ok(wide < huge);
 });
 
 test('sidecar builder renders compact and wide modes', () => {
