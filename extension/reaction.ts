@@ -37,7 +37,7 @@ export async function maybeGenerateReaction(
   ) {
     return Math.random() < 0.3 ? { text: local, source: 'local' } : null;
   }
-  if (Math.random() >= 0.7) return null;
+  if (Math.random() >= 0.85) return null;  // skip ~15% to avoid every single turn
 
   try {
     const high = getHighestStat(buddy.stats);

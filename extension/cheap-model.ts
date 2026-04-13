@@ -10,9 +10,9 @@ import type { BuddyState } from './state.ts';
 export const BUDDY_CHEAP_MODELS = [
   // GitHub Copilot (free for subscribers) — try fastest first
   ['github-copilot', 'claude-haiku-4.5'],
+  ['github-copilot', 'gpt-4o-mini'],
   ['github-copilot', 'gpt-4o'],
   ['github-copilot', 'gemini-3-flash-preview'],
-  ['github-copilot', 'gpt-5-mini'],
   // Direct Anthropic
   ['anthropic', 'claude-haiku-4-20240307'],
   ['anthropic', 'claude-haiku-4-5'],

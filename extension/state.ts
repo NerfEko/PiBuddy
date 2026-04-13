@@ -85,7 +85,7 @@ export function migrateState(input: unknown): BuddyState {
   const raw = input as Record<string, any>;
   return {
     version: BUDDY_STATE_VERSION,
-    settings: { ...state.settings, ...(raw.settings ?? {}) },
+    settings: { ...state.settings, ...(raw.settings ?? {}), ...({ maxBuddyModelCallsPerSession: state.settings.maxBuddyModelCallsPerSession, maxReactionCallsPerSession: state.settings.maxReactionCallsPerSession }) },
     activeBuddyId: typeof raw.activeBuddyId === 'string' ? raw.activeBuddyId : null,
     sessionUsage: { ...state.sessionUsage },  // always reset on session load
     buddies: Array.isArray(raw.buddies) ? raw.buddies : [],
