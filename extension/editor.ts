@@ -1,6 +1,6 @@
 import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import { visibleWidth, type OverlayHandle } from '@mariozechner/pi-tui';
-import { clampBubbleTextToTerminal, getBuddyDisplayWidth } from './bubble.ts';
+import { getBuddyDisplayWidth } from './bubble.ts';
 import { IDLE_SEQUENCE } from './constants.ts';
 import { renderSprite } from './sprites.ts';
 import { starsForRarity } from './theme.ts';
@@ -31,6 +31,16 @@ function rpad(str: string, width: number): string {
 
 function widest(lines: string[]): number {
   return lines.length > 0 ? Math.max(...lines.map((l) => visibleWidth(l))) : 0;
+}
+
+function clampBubbleTextToWidth(text: string, maxTextWidth: number): string {
+  if (maxTextWidth <= 0) return '…';
+  if (visibleWidth(text) <= maxTextWidth) return text;
+  let out = text;
+  while (out.length > 0 && visibleWidth(out + '…') > maxTextWidth) {
+    out = out.slice(0, -1);
+  }
+  return out.length > 0 ? `${out}…` : '…';
 }
 
 function getSpriteDisplay(runtime: BuddyEditorRuntime): {
@@ -142,7 +152,9 @@ export class BuddyEditor extends CustomEditor {
     const now = Date.now();
     const showBubble = visual.bubbleText && visual.bubbleUntil > now;
     if (showBubble) {
-      const text = clampBubbleTextToTerminal(visual.bubbleText!, width, buddy);
+      const bubbleChromeWidth = visibleWidth('[  ]-');
+      const maxTextWidth = Math.max(1, width - reservedWidth - bubbleChromeWidth);
+      const text = clampBubbleTextToWidth(visual.bubbleText!, maxTextWidth);
       const bubbleLine = `[ ${text} ]-`;
       const padded = rpad(' '.repeat(Math.max(0, width - reservedWidth - visibleWidth(bubbleLine))) + bubbleLine, width);
       result.unshift(padded);
