@@ -12,7 +12,7 @@ test('buddy command parser handles switch, test, and default', () => {
   assert.deepEqual(parseBuddyCommand('test verify model reaction'), { action: 'test', value: 'verify model reaction' });
 });
 
-test('bubble text limit uses about two thirds of available line width', () => {
+test('bubble text limit scales with terminal width for wrapped bubble lines', () => {
   const buddy = {
     id: 'duck-1',
     seed: 1,
@@ -28,18 +28,18 @@ test('bubble text limit uses about two thirds of available line width', () => {
     soulSource: 'fallback' as const,
   };
   const reserved = getBuddyDisplayWidth(buddy) + 1;
-  const safety = 2;
-  const narrowFit = Math.max(1, (80 - reserved) - '[  ]-'.length - safety);
-  const wideFit = Math.max(1, (140 - reserved) - '[  ]-'.length - safety);
-  const hugeFit = Math.max(1, (240 - reserved) - '[  ]-'.length - safety);
   const narrow = getBubbleTextCharLimit(80, buddy);
-  const wide = getBubbleTextCharLimit(140, buddy);
+  const medium = getBubbleTextCharLimit(120, buddy);
+  const wide = getBubbleTextCharLimit(160, buddy);
   const huge = getBubbleTextCharLimit(240, buddy);
-  assert.equal(narrow, Math.floor(narrowFit * 2 / 3));
-  assert.equal(wide, Math.floor(wideFit * 2 / 3));
-  assert.equal(huge, Math.floor(hugeFit * 2 / 3));
-  assert.ok(narrow < wide);
+  assert.ok(narrow < medium);
+  assert.ok(medium < wide);
   assert.ok(wide < huge);
+
+  const narrowLineFit = Math.max(1, (80 - reserved) - '[  ]-'.length);
+  const hugeLineFit = Math.max(1, (240 - reserved) - '[  ]-'.length);
+  assert.ok(narrow > narrowLineFit);
+  assert.ok(huge > hugeLineFit);
 });
 
 test('sidecar builder renders compact and wide modes', () => {

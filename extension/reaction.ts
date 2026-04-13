@@ -12,6 +12,31 @@ export type BuddyModelReactionTestResult =
   | { ok: true; text: string; modelKey: string }
   | { ok: false; reason: 'no-model' | 'aborted' | 'error' | 'empty'; modelKey?: string; error?: string };
 
+function shortenReactionText(rawText: string, maxChars: number): string {
+  const cleaned = rawText
+    .replace(/\s+/g, ' ')
+    .replace(/^['"`]+|['"`]+$/g, '')
+    .trim();
+  if (!cleaned) return '';
+
+  const firstSentence = cleaned.match(/^(.{1,200}?[.!?])(?:\s|$)/)?.[1]?.trim();
+  if (firstSentence && firstSentence.length <= maxChars) return firstSentence;
+
+  const firstClause = cleaned.split(/[;—]|\s[-–]\s|:\s/)[0]?.trim() || cleaned;
+  if (firstClause.length <= maxChars) return firstClause;
+
+  const softTarget = Math.max(12, Math.min(maxChars, Math.floor(maxChars * 0.75)));
+  let shortened = firstClause.slice(0, softTarget).trim();
+  const lastSpace = shortened.lastIndexOf(' ');
+  if (lastSpace > Math.max(8, Math.floor(softTarget / 2))) {
+    shortened = shortened.slice(0, lastSpace).trim();
+  }
+  while (shortened.length > 0 && `${shortened}…`.length > maxChars) {
+    shortened = shortened.slice(0, -1).trim();
+  }
+  return shortened ? `${shortened}…` : cleaned.slice(0, Math.max(1, maxChars - 1)).trim() + '…';
+}
+
 function buildReactionPrompts(buddy: BuddyRecord, summary: TurnSummary, maxChars = 90): { prompt: string; sysPrompt: string } {
   const high = getHighestStat(buddy.stats);
   const low = getLowestStat(buddy.stats);
@@ -31,7 +56,7 @@ function buildReactionPrompts(buddy: BuddyRecord, summary: TurnSummary, maxChars
   if (buddy.lastSaid)
     contextParts.push(`Your last reaction was: "${buddy.lastSaid}" — don't repeat it.`);
   contextParts.push(
-    `React as ${buddy.name} in one short line. Be specific to what just happened — mention files, errors, or results if relevant. Stay in character. Max ${maxChars} chars. No quotes. No markdown.`
+    `React as ${buddy.name} in one very short line. Be specific to what just happened — mention files, errors, or results if relevant. Stay in character. Hard limit: ${maxChars} chars including spaces and punctuation. Aim for about ${Math.max(12, Math.floor(maxChars * 0.65))} chars or less. Use one short sentence only. Prefer 4-10 words. No setup, no second clause, no trailing explanation. If your first draft is too long, rewrite it shorter instead of trailing off. No quotes. No markdown.`
   );
   return {
     prompt: contextParts.join('\n'),
@@ -58,21 +83,22 @@ async function generateModelReaction(
   };
 
   try {
+    const outputTokenCap = Math.max(12, Math.min(TOKEN_POLICY.reactionOutputHardCap, Math.ceil(maxChars / 5)));
     const response = await complete(
       cheap.model,
       { systemPrompt: sysPrompt, messages: [userMessage] },
-      { apiKey: cheap.apiKey, headers: cheap.headers, signal: ctx.signal, maxTokens: TOKEN_POLICY.reactionOutputHardCap },
+      { apiKey: cheap.apiKey, headers: cheap.headers, signal: ctx.signal, maxTokens: outputTokenCap },
     );
 
     if (response.stopReason === 'aborted') return { ok: false, reason: 'aborted', modelKey };
     if (response.stopReason === 'error') return { ok: false, reason: 'error', modelKey, error: 'model returned error stopReason' };
 
-    const text = response.content
+    const rawText = response.content
       .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
       .map((part) => part.text)
       .join(' ')
-      .trim()
-      .slice(0, Math.max(1, maxChars));
+      .trim();
+    const text = shortenReactionText(rawText, Math.max(1, maxChars));
 
     recordModelUsage(state, response.usage.input || 0, response.usage.output || 0, 'reaction');
     return text ? { ok: true, text, modelKey } : { ok: false, reason: 'empty', modelKey };

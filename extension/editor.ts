@@ -1,6 +1,6 @@
 import { CustomEditor, type ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import { visibleWidth, type OverlayHandle } from '@mariozechner/pi-tui';
-import { getBuddyDisplayWidth } from './bubble.ts';
+import { getBuddyDisplayWidth, getBubbleTextCharLimit } from './bubble.ts';
 import { IDLE_SEQUENCE } from './constants.ts';
 import { renderSprite } from './sprites.ts';
 import { starsForRarity } from './theme.ts';
@@ -43,6 +43,13 @@ function clampBubbleTextToWidth(text: string, maxTextWidth: number): string {
   return out.length > 0 ? `${out}…` : '…';
 }
 
+const BUDDY_TEXT_COLOR = "\x1b[38;5;225m";
+const RESET_COLOR = "\x1b[0m";
+
+function colorBuddyText(text: string): string {
+  return `${BUDDY_TEXT_COLOR}${text}${RESET_COLOR}`;
+}
+
 function getSpriteDisplay(runtime: BuddyEditorRuntime): {
   visible: boolean;
   displayWidth: number;
@@ -65,7 +72,6 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
 
   const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
   const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
-  const nameVW = visibleWidth(nameLine);
 
   // Find the minimum left indent of non-blank sprite lines (strip internal padding)
   const nonBlank = sprite.filter(l => l.trim().length > 0);
@@ -75,9 +81,9 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
   const trimmedLines = sprite.map(l => l.slice(leftIndent).trimEnd());
   const visualSpriteWidth = Math.max(...trimmedLines.map(l => visibleWidth(l)), 1);
 
-  // Display width = wider of trimmed sprite visual or name
-  const displayWidth = Math.max(visualSpriteWidth, nameVW);
-  // Center the visual sprite content over the name
+  // Keep editor reservation in sync with the fixed overlay width.
+  const displayWidth = getBuddyDisplayWidth(buddy);
+  // Center the visual sprite content over the fixed display width.
   const spriteLeftPad = Math.max(0, Math.floor((displayWidth - visualSpriteWidth) / 2));
 
   const showHearts = visual.heartsUntil > now;
@@ -147,18 +153,15 @@ export class BuddyEditor extends CustomEditor {
     const editorLines = super.render(editorWidth);
     const result = editorLines.map((l) => rpad(l, width));
 
-    // Always include a bubble line above the editor (empty when idle)
-    // so the layout never shifts when buddy talks
+    // Always reserve one bubble row so layout stays stable.
     const now = Date.now();
     const showBubble = visual.bubbleText && visual.bubbleUntil > now;
+    const bubbleAreaWidth = Math.max(1, width - reservedWidth);
     if (showBubble) {
-      const bubbleChromeWidth = visibleWidth('[  ]-');
-      const bubbleEndSafetyGutter = 2;
-      const fullFitTextWidth = Math.max(1, width - reservedWidth - bubbleChromeWidth - bubbleEndSafetyGutter);
-      const maxTextWidth = Math.max(1, Math.floor(fullFitTextWidth * (2 / 3)));
+      const maxTextWidth = getBubbleTextCharLimit(width, buddy);
       const text = clampBubbleTextToWidth(visual.bubbleText!, maxTextWidth);
-      const bubbleLine = `[ ${text} ]-`;
-      const padded = rpad(' '.repeat(Math.max(0, width - reservedWidth - visibleWidth(bubbleLine))) + bubbleLine, width);
+      const bubbleLine = `[ ${colorBuddyText(text)} ]-`;
+      const padded = rpad(' '.repeat(Math.max(0, bubbleAreaWidth - visibleWidth(bubbleLine))) + bubbleLine, width);
       result.unshift(padded);
     } else {
       result.unshift(rpad('', width));
