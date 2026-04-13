@@ -61,7 +61,7 @@ export async function maybeGenerateReaction(
       `React as ${buddy.name} in one short line. Be specific to what just happened — mention files, errors, or results if relevant. Stay in character. Max 90 chars. No quotes. No markdown.`
     );
     const prompt = contextParts.join('\n');
-    const sysPrompt = `You are ${buddy.name}, a ${buddy.species} companion watching a developer work. Personality: ${buddy.personality} React with a single short in-character comment about what just happened. Be specific, not generic. Never say "terminal energy".`;
+    const sysPrompt = `You are ${buddy.name}, a ${buddy.species} companion watching a developer work. Personality: ${buddy.personality} React with a single short in-character comment about what just happened. Be specific, not generic.`;
 
     const userMessage: UserMessage = {
       role: 'user',
