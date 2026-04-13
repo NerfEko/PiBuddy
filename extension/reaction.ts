@@ -4,9 +4,9 @@ import { findCheapModel } from './cheap-model.ts';
 import { getHighestStat, getLowestStat } from './roll.ts';
 import { canUseModelReaction, recordModelUsage, TOKEN_POLICY } from './token-policy.ts';
 import type { BuddyRecord, BuddyState } from './state.ts';
-import { classifyTurn, type TurnSummary } from './reaction-core.ts';
+import { classifyTurn, generateLocalReaction, type TurnSummary } from './reaction-core.ts';
 
-export { classifyTurn } from './reaction-core.ts';
+export { classifyTurn, generateLocalReaction } from './reaction-core.ts';
 
 export type BuddyModelReactionTestResult =
   | { ok: true; text: string; modelKey: string }
@@ -140,7 +140,15 @@ export async function maybeGenerateReaction(
   maxChars = 90,
 ): Promise<{ text: string; source: 'local' | 'model' } | null> {
   if (state.settings.hidden || state.settings.muted || !state.settings.reactionEnabled) return null;
-  if (state.settings.reactionMode === 'off' || state.settings.reactionMode !== 'cheap-model') return null;
+  if (state.settings.reactionMode === 'off') return null;
+  if (!summary.noteworthy) return null;
+
+  const localText = shortenReactionText(generateLocalReaction(buddy, summary), Math.max(1, maxChars));
+  const localReaction = localText ? { text: localText, source: 'local' as const } : null;
+
+  if (state.settings.reactionMode !== 'cheap-model') {
+    return localReaction;
+  }
 
   if (
     !canUseModelReaction({
@@ -151,10 +159,10 @@ export async function maybeGenerateReaction(
       noteworthy: summary.noteworthy,
     })
   ) {
-    return null;
+    return localReaction;
   }
-  if (Math.random() >= 0.85) return null;  // skip ~15% to avoid every single turn
+  if (Math.random() >= 0.85) return localReaction;  // skip ~15% to avoid every single turn
 
   const result = await generateModelReaction(ctx, state, buddy, summary, maxChars);
-  return result.ok ? { text: result.text, source: 'model' } : null;
+  return result.ok ? { text: result.text, source: 'model' } : localReaction;
 }
