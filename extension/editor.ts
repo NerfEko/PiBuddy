@@ -128,7 +128,7 @@ export class BuddyEditor extends CustomEditor {
     }
 
     const display = getSpriteDisplay(this.runtime);
-    const reservedWidth = display.displayWidth + 1;
+    const reservedWidth = display.displayWidth;
     const editorWidth = Math.max(30, width - reservedWidth);
     const editorLines = super.render(editorWidth);
     const result = editorLines.map((l) => rpad(l, width));
@@ -173,7 +173,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
       overlay: true,
       overlayOptions: {
         anchor: 'bottom-right' as const,
-        width: getSpriteDisplay(runtime).displayWidth + 1,
+        width: getSpriteDisplay(runtime).displayWidth,
         margin: { right: 1, bottom: 2 },
         nonCapturing: true,
         visible: (termWidth: number) => termWidth >= 60 && getSpriteDisplay(runtime).visible,
