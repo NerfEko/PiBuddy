@@ -79,10 +79,8 @@ export function classifyTurn(input: {
   // Longer slice for model to read — first ~400 chars
   const assistantFull = assistantText.slice(0, 400);
 
-  // noteworthy = anything with real work done (not just idle general turns)
-  const noteworthy = hasWrite || hasFailingBash || hasBash ||
-    /fix|implement|patched|added|updated|refactor|test|commit|push|install/i.test(assistantText) ||
-    assistantText.length > 100;
+  // noteworthy = any turn where there was actual work or a real response
+  const noteworthy = hasWrite || hasFailingBash || hasBash || assistantText.length > 30;
 
   return {
     turnKind,

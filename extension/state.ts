@@ -83,9 +83,14 @@ export function migrateState(input: unknown): BuddyState {
   const state = createDefaultState();
   if (!input || typeof input !== 'object') return state;
   const raw = input as Record<string, any>;
+  // Strip stale/invalid preferredModel entries
+  const savedSettings = { ...(raw.settings ?? {}) };
+  if (savedSettings.preferredModel === 'github-copilot/gpt-5-mini') {
+    delete savedSettings.preferredModel;
+  }
   return {
     version: BUDDY_STATE_VERSION,
-    settings: { ...state.settings, ...(raw.settings ?? {}), ...({ maxBuddyModelCallsPerSession: state.settings.maxBuddyModelCallsPerSession, maxReactionCallsPerSession: state.settings.maxReactionCallsPerSession }) },
+    settings: { ...state.settings, ...savedSettings, maxBuddyModelCallsPerSession: state.settings.maxBuddyModelCallsPerSession, maxReactionCallsPerSession: state.settings.maxReactionCallsPerSession },
     activeBuddyId: typeof raw.activeBuddyId === 'string' ? raw.activeBuddyId : null,
     sessionUsage: { ...state.sessionUsage },  // always reset on session load
     buddies: Array.isArray(raw.buddies) ? raw.buddies : [],

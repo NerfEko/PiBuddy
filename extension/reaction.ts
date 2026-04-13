@@ -84,7 +84,9 @@ export async function maybeGenerateReaction(
       .slice(0, 120);
     recordModelUsage(state, response.usage.input || 0, response.usage.output || 0, 'reaction');
     return text ? { text, source: 'model' } : { text: local, source: 'local' };
-  } catch {
+  } catch (err) {
+    // Log so we can see if model calls are failing
+    console.error('[pi-buddy] reaction model error:', err instanceof Error ? err.message : err);
     return { text: local, source: 'local' };
   }
 }
