@@ -52,16 +52,25 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
   const frame = frameToken < 0 ? 0 : frameToken;
 
   const sprite = renderSprite(buddy.species, frame, buddy.eye, buddy.hat, blink);
-  const spriteBodyWidth = widest(sprite);
   const nameLine = `${buddy.name}${buddy.shiny ? ' ✨' : ''} ${starsForRarity(buddy.rarity)}`;
   const nameVW = visibleWidth(nameLine);
-  // Display width = wider of sprite or name, no extra inflation
-  const displayWidth = Math.max(spriteBodyWidth, nameVW);
-  // Center sprite above the left-aligned name
-  const spriteLeftPad = Math.max(0, Math.floor((displayWidth - spriteBodyWidth) / 2));
+
+  // Find the minimum left indent of non-blank sprite lines (strip internal padding)
+  const nonBlank = sprite.filter(l => l.trim().length > 0);
+  const leftIndent = nonBlank.length > 0
+    ? Math.min(...nonBlank.map(l => l.length - l.trimStart().length))
+    : 0;
+  const trimmedLines = sprite.map(l => l.slice(leftIndent).trimEnd());
+  const visualSpriteWidth = Math.max(...trimmedLines.map(l => visibleWidth(l)), 1);
+
+  // Display width = wider of trimmed sprite visual or name
+  const displayWidth = Math.max(visualSpriteWidth, nameVW);
+  // Center the visual sprite content over the name
+  const spriteLeftPad = Math.max(0, Math.floor((displayWidth - visualSpriteWidth) / 2));
 
   const showHearts = visual.heartsUntil > now;
   const heartsStr = showHearts ? '  ♥  ♥  ♥  '.slice(0, displayWidth) : '';
+
   const spriteLines = [...sprite];
   let heartsInlined = false;
   if (heartsStr && spriteLines[0]?.trim() === '') {
@@ -71,8 +80,8 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
 
   const lines = [
     ...(!heartsInlined && heartsStr ? [heartsStr.padEnd(displayWidth)] : []),
-    ...spriteLines.map((l) => (' '.repeat(spriteLeftPad) + l.trimEnd()).padEnd(displayWidth)),
-    nameLine,  // left-aligned, no trailing pad — overlay box sized to displayWidth
+    ...trimmedLines.map((l) => (' '.repeat(spriteLeftPad) + l).padEnd(displayWidth)),
+    nameLine,  // left-aligned
   ];
 
   return { visible: true, displayWidth, lines };
