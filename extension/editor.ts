@@ -132,7 +132,7 @@ export class BuddyEditor extends CustomEditor {
     visual.lastEditorWidth = width;
 
     const display = getSpriteDisplay(this.runtime);
-    const reservedWidth = display.displayWidth;
+    const reservedWidth = display.displayWidth + 1;
     const editorWidth = Math.max(30, width - reservedWidth);
     const editorLines = super.render(editorWidth);
     const result = editorLines.map((l) => rpad(l, width));

@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
-import { clampBubbleTextToTerminal, getBubbleTextCharLimit } from './bubble.ts';
+import { getBubbleTextCharLimit } from './bubble.ts';
 import { showBuddyCard, showRosterBrowser } from './card.ts';
 import { registerBuddyCommands } from './commands.ts';
 import { installBuddyEditor, clearBuddyEditor, type BuddyVisualState } from './editor.ts';
@@ -38,8 +38,6 @@ export default function (pi: ExtensionAPI) {
   };
 
   const activeBuddy = () => getActiveBuddy(state);
-  const fitBubbleText = (buddy: BuddyRecord, text: string) =>
-    clampBubbleTextToTerminal(text, visual.lastEditorWidth || 80, buddy);
   const bubbleCharLimit = (buddy: BuddyRecord) =>
     getBubbleTextCharLimit(visual.lastEditorWidth || 80, buddy);
 
@@ -213,7 +211,7 @@ export default function (pi: ExtensionAPI) {
           `*vibrates with joy*`, `More pets please!`, `*sparkles*`,
         ];
         const reaction = petLines[Math.floor(Math.random() * petLines.length)]!;
-        visual.bubbleText = fitBubbleText(buddy, reaction);
+        visual.bubbleText = reaction;
         visual.bubbleUntil = Date.now() + 4000;
         await save();
         requestRender();
@@ -358,9 +356,8 @@ export default function (pi: ExtensionAPI) {
       visual.animationState = 'idle';
 
       if (result.ok) {
-        const fitted = fitBubbleText(buddy, result.text);
-        buddy.lastSaid = fitted;
-        visual.bubbleText = fitted;
+        buddy.lastSaid = result.text;
+        visual.bubbleText = result.text;
         visual.bubbleUntil = Date.now() + 10000;
         await save();
         requestRender();
@@ -430,9 +427,8 @@ export default function (pi: ExtensionAPI) {
     const summary = classifyTurn({ assistantText, toolResults: toolResultsWithArgs });
     const reaction = await maybeGenerateReaction(ctx, state, buddy, summary, completedTurns, lastReactionTurn, lastReactionAt, bubbleCharLimit(buddy));
     if (reaction) {
-      const fitted = fitBubbleText(buddy, reaction.text);
-      buddy.lastSaid = fitted;
-      visual.bubbleText = fitted;
+      buddy.lastSaid = reaction.text;
+      visual.bubbleText = reaction.text;
       visual.bubbleUntil = Date.now() + 10000;
       lastReactionAt = Date.now();
       lastReactionTurn = completedTurns;
