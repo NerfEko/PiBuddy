@@ -59,8 +59,8 @@ export const DEFAULT_SETTINGS: BuddySettings = {
   bubbleMode: 'auto',
   soulMode: 'model',
   reactionMode: 'cheap-model',
-  maxBuddyModelCallsPerSession: 50,
-  maxReactionCallsPerSession: 30,
+  maxBuddyModelCallsPerSession: 100,
+  maxReactionCallsPerSession: 80,
 };
 
 export function createDefaultState(): BuddyState {
@@ -87,7 +87,7 @@ export function migrateState(input: unknown): BuddyState {
     version: BUDDY_STATE_VERSION,
     settings: { ...state.settings, ...(raw.settings ?? {}) },
     activeBuddyId: typeof raw.activeBuddyId === 'string' ? raw.activeBuddyId : null,
-    sessionUsage: { ...state.sessionUsage, ...(raw.sessionUsage ?? {}) },
+    sessionUsage: { ...state.sessionUsage },  // always reset on session load
     buddies: Array.isArray(raw.buddies) ? raw.buddies : [],
   };
 }

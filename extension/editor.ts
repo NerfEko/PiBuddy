@@ -72,7 +72,7 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
   const lines = [
     ...(!heartsInlined && heartsStr ? [heartsStr.padEnd(displayWidth)] : []),
     ...spriteLines.map((l) => (' '.repeat(spriteLeftPad) + l.trimEnd()).padEnd(displayWidth)),
-    nameLine.padEnd(displayWidth),  // left-aligned
+    nameLine,  // left-aligned, no trailing pad — overlay box sized to displayWidth
   ];
 
   return { visible: true, displayWidth, lines };
