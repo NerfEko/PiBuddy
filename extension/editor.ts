@@ -153,7 +153,8 @@ export class BuddyEditor extends CustomEditor {
     const showBubble = visual.bubbleText && visual.bubbleUntil > now;
     if (showBubble) {
       const bubbleChromeWidth = visibleWidth('[  ]-');
-      const fullFitTextWidth = Math.max(1, width - reservedWidth - bubbleChromeWidth);
+      const bubbleEndSafetyGutter = 2;
+      const fullFitTextWidth = Math.max(1, width - reservedWidth - bubbleChromeWidth - bubbleEndSafetyGutter);
       const maxTextWidth = Math.max(1, Math.floor(fullFitTextWidth * (2 / 3)));
       const text = clampBubbleTextToWidth(visual.bubbleText!, maxTextWidth);
       const bubbleLine = `[ ${text} ]-`;

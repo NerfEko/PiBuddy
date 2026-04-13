@@ -5,6 +5,7 @@ import { starsForRarity } from './theme.ts';
 const visibleWidth = (text: string) => text.length;
 const BUBBLE_CHROME_WIDTH = visibleWidth('[  ]-');
 const BUDDY_OVERLAY_RIGHT_MARGIN = 1;
+const BUBBLE_END_SAFETY_GUTTER = 2;
 const MAX_BUBBLE_TEXT_CHARS = 360;
 const BUBBLE_TEXT_USAGE_RATIO = 2 / 3;
 
@@ -55,7 +56,7 @@ export function getBuddyDisplayWidth(buddy: BuddyRecord): number {
 export function getBubbleTextCharLimit(termWidth: number, buddy: BuddyRecord, hardCap = MAX_BUBBLE_TEXT_CHARS): number {
   const reservedWidth = getBuddyDisplayWidth(buddy) + BUDDY_OVERLAY_RIGHT_MARGIN;
   const availableWidth = Math.max(0, termWidth - reservedWidth);
-  const fitLimit = Math.max(1, availableWidth - BUBBLE_CHROME_WIDTH);
+  const fitLimit = Math.max(1, availableWidth - BUBBLE_CHROME_WIDTH - BUBBLE_END_SAFETY_GUTTER);
   const preferredLimit = Math.max(1, Math.floor(fitLimit * BUBBLE_TEXT_USAGE_RATIO));
   return Math.max(1, Math.min(hardCap, preferredLimit));
 }

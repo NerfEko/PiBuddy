@@ -28,9 +28,10 @@ test('bubble text limit uses about two thirds of available line width', () => {
     soulSource: 'fallback' as const,
   };
   const reserved = getBuddyDisplayWidth(buddy) + 1;
-  const narrowFit = Math.max(1, (80 - reserved) - '[  ]-'.length);
-  const wideFit = Math.max(1, (140 - reserved) - '[  ]-'.length);
-  const hugeFit = Math.max(1, (240 - reserved) - '[  ]-'.length);
+  const safety = 2;
+  const narrowFit = Math.max(1, (80 - reserved) - '[  ]-'.length - safety);
+  const wideFit = Math.max(1, (140 - reserved) - '[  ]-'.length - safety);
+  const hugeFit = Math.max(1, (240 - reserved) - '[  ]-'.length - safety);
   const narrow = getBubbleTextCharLimit(80, buddy);
   const wide = getBubbleTextCharLimit(140, buddy);
   const huge = getBubbleTextCharLimit(240, buddy);
