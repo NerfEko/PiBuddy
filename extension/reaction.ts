@@ -20,11 +20,7 @@ export async function maybeGenerateReaction(
   if (state.settings.reactionMode === 'off' || state.settings.reactionMode !== 'cheap-model') return null;
 
   const cheap = await findCheapModel(ctx, state);
-  if (!cheap) {
-    console.log('[pi-buddy] no cheap model found');
-    return null;
-  }
-  console.log('[pi-buddy] using model:', cheap.model.provider + '/' + cheap.model.id);
+  if (!cheap) return null;
   if (
     !canUseModelReaction({
       state,
@@ -81,11 +77,9 @@ export async function maybeGenerateReaction(
       .join(' ')
       .trim()
       .slice(0, 120);
-    console.log('[pi-buddy] reaction result:', JSON.stringify({ stopReason: response.stopReason, contentTypes: response.content.map((c:any)=>c.type), text }));
     recordModelUsage(state, response.usage.input || 0, response.usage.output || 0, 'reaction');
     return text ? { text, source: 'model' } : null;
   } catch (err) {
-    console.error('[pi-buddy] reaction model error:', err instanceof Error ? err.message : err);
     return null;
   }
 }
