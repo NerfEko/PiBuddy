@@ -45,17 +45,23 @@ export async function maybeGenerateReaction(
     const contextParts = [
       `You are ${buddy.name}, a ${buddy.rarity} ${buddy.species} companion.`,
       `Personality: ${buddy.personality}`,
-      `Your strongest stat is ${high.name} (${high.value}), weakest is ${low.name} (${low.value}).`,
-      `What just happened: ${summary.turnKind}.`,
+      `Stats — strongest: ${high.name} (${high.value}), weakest: ${low.name} (${low.value}).`,
     ];
-    if (summary.filesChanged.length > 0) contextParts.push(`Files changed: ${summary.filesChanged.slice(0, 3).join(', ')}.`);
-    if (summary.errorHint) contextParts.push(`There was an error: ${summary.errorHint}.`);
-    if (summary.assistantSummary) contextParts.push(`What the AI said: ${summary.assistantSummary.slice(0, 200)}.`);
-    if (buddy.lastSaid) contextParts.push(`Your last reaction was: "${buddy.lastSaid}" — say something different.`);
-    contextParts.push(`React as ${buddy.name} in one short line that reflects your personality. Max 80 chars. No quotes. No markdown.`);
+    if (summary.filesChanged.length > 0)
+      contextParts.push(`Files changed: ${summary.filesChanged.slice(0, 4).join(', ')}.`);
+    if (summary.errorHint)
+      contextParts.push(`Error encountered: ${summary.errorHint}.`);
+    if (summary.outputHints.length > 0)
+      contextParts.push(`Output: ${summary.outputHints.join(', ')}.`);
+    if (summary.assistantFull)
+      contextParts.push(`What the AI just did/said:\n${summary.assistantFull}`);
+    if (buddy.lastSaid)
+      contextParts.push(`Your last reaction was: "${buddy.lastSaid}" — don't repeat it.`);
+    contextParts.push(
+      `React as ${buddy.name} in one short line. Be specific to what just happened — mention files, errors, or results if relevant. Stay in character. Max 90 chars. No quotes. No markdown.`
+    );
     const prompt = contextParts.join('\n');
-
-    const sysPrompt = `You are ${buddy.name}, a ${buddy.species} with this personality: ${buddy.personality} You watch a developer work and occasionally react in character. Be specific to what just happened. Stay in character.`;
+    const sysPrompt = `You are ${buddy.name}, a ${buddy.species} companion watching a developer work. Personality: ${buddy.personality} React with a single short in-character comment about what just happened. Be specific, not generic. Never say "terminal energy".`;
 
     const userMessage: UserMessage = {
       role: 'user',

@@ -6,13 +6,14 @@ export type TurnKind = 'coding' | 'debugging' | 'planning' | 'quick-answer' | 'g
 export interface TurnSummary {
   turnKind: TurnKind;
   assistantSummary: string;
+  /** Longer slice of assistant text for model reactions */
+  assistantFull: string;
   noteworthy: boolean;
-  /** Files edited/written this turn */
   filesChanged: string[];
-  /** Short error snippet if debugging */
   errorHint: string;
-  /** Tools used */
   toolsUsed: string[];
+  /** Interesting output snippets (test results, compile output, etc.) */
+  outputHints: string[];
 }
 
 function extractText(content: any): string {
@@ -31,30 +32,40 @@ export function classifyTurn(input: {
   const toolNames = new Set(toolResults.map((r) => r.toolName).filter(Boolean));
   const toolsUsed = [...toolNames] as string[];
 
-  // Extract file paths from edit/write tool args
   const filesChanged: string[] = [];
+  const outputHints: string[] = [];
+  let errorHint = '';
+
   for (const r of toolResults) {
+    // Collect files changed
     if ((r.toolName === 'edit' || r.toolName === 'write') && r.args?.path) {
       const p = String(r.args.path).split('/').pop() || r.args.path;
       if (!filesChanged.includes(p)) filesChanged.push(p);
     }
+
+    // Collect useful bash output snippets
+    if (r.toolName === 'bash') {
+      const text = extractText(r.content);
+      // Test results
+      const testMatch = text.match(/(\d+ passing|\d+ failing|\d+ tests?|all tests passed|tests? passed|tests? failed)/i);
+      if (testMatch) outputHints.push(testMatch[0]);
+      // Compile/build output
+      const buildMatch = text.match(/(compiled|build success|build failed|error TS\d+|\d+ error|\d+ warning)/i);
+      if (buildMatch) outputHints.push(buildMatch[0]);
+      // Error extraction
+      if (r.isError || /fail|error|exception|traceback/i.test(text)) {
+        const errLine = text.split('\n').find(l => /error|fail|exception/i.test(l))?.trim();
+        if (errLine) errorHint = errLine.slice(0, 100);
+      }
+    }
   }
 
   const hasWrite = toolNames.has('edit') || toolNames.has('write');
-  let errorHint = '';
+  const hasBash = toolNames.has('bash');
   const hasFailingBash = toolResults.some((r) => {
     if (r.toolName !== 'bash') return false;
-    if (r.isError) {
-      const text = extractText(r.content);
-      errorHint = text.split('\n').find(l => /error|fail|exception/i.test(l))?.trim().slice(0, 80) || '';
-      return true;
-    }
-    const text = extractText(r.content);
-    if (/fail|error|exception|traceback|not ok/i.test(text)) {
-      errorHint = text.split('\n').find(l => /error|fail|exception/i.test(l))?.trim().slice(0, 80) || '';
-      return true;
-    }
-    return false;
+    if (r.isError) return true;
+    return /fail|error|exception|traceback|not ok/i.test(extractText(r.content));
   });
 
   let turnKind: TurnKind = 'general';
@@ -63,17 +74,25 @@ export function classifyTurn(input: {
   else if (/plan|phase|step|roadmap/i.test(assistantText)) turnKind = 'planning';
   else if (assistantText.length > 0 && assistantText.length < 180) turnKind = 'quick-answer';
 
-  // Build a richer summary
-  const firstSentence = assistantText.split(/[.!?\n]/).filter(Boolean)[0]?.trim().slice(0, 80) || '';
+  const firstSentence = assistantText.split(/[.!?\n]/).filter(Boolean)[0]?.trim().slice(0, 100) || '';
   const summary = firstSentence || assistantText.split(/\s+/).slice(0, 20).join(' ');
+  // Longer slice for model to read — first ~400 chars
+  const assistantFull = assistantText.slice(0, 400);
+
+  // noteworthy = anything with real work done (not just idle general turns)
+  const noteworthy = hasWrite || hasFailingBash || hasBash ||
+    /fix|implement|patched|added|updated|refactor|test|commit|push|install/i.test(assistantText) ||
+    assistantText.length > 100;
 
   return {
     turnKind,
     assistantSummary: summary,
-    noteworthy: hasWrite || hasFailingBash || /fix|implement|patched|added|updated/i.test(assistantText),
+    assistantFull,
+    noteworthy,
     filesChanged,
     errorHint,
     toolsUsed,
+    outputHints,
   };
 }
 
