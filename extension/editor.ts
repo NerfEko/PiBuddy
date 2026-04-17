@@ -123,7 +123,7 @@ class BubbleSpeechOverlay {
       return [];
     }
 
-    const innerWidth = Math.max(1, width - 4); // "│ " + " │"
+    const innerWidth = Math.max(1, width - 4);
     const words = visual.bubbleText.split(' ');
     const lines: string[] = [];
     let current = '';
@@ -144,7 +144,7 @@ class BubbleSpeechOverlay {
       `╭${bar}╮`,
       ...lines.map(l => `│ ${l.padEnd(innerWidth)} │`),
       `╰${bar}╯`,
-      `${'  '.repeat(Math.floor((width - 2) / 2))}╲`,
+      `${' '.repeat(width - 2)}╲`,
     ];
   }
 
@@ -152,7 +152,7 @@ class BubbleSpeechOverlay {
   dispose(): void {}
 }
 
-/** Overlay component: sprite + name only, no bubble */
+/** Sprite-only overlay */
 class BuddySpriteOverlay {
   constructor(private runtime: BuddyEditorRuntime) {}
 
@@ -237,7 +237,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
   const spriteWidth = runtime.getActiveBuddy() ? getBuddyDisplayWidth(runtime.getActiveBuddy()!) : 20;
   const bubbleWidth = 32;
 
-  // Speech bubble overlay — positioned top-left of the sprite
+  // Speech bubble overlay — top-left of the sprite
   void ctx.ui.custom<void>(
     (_tui: any, _theme: any, _keybindings: any, _done: (result: void) => void) => new BubbleSpeechOverlay(runtime),
     {
@@ -245,7 +245,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
       overlayOptions: {
         anchor: 'bottom-right' as const,
         width: bubbleWidth,
-        margin: { right: spriteWidth + 3, bottom: 6 },
+        margin: { right: spriteWidth + 3, bottom: 9 },
         nonCapturing: true,
         visible: (termWidth: number) => {
           const v = runtime.getVisualState();
@@ -258,7 +258,7 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
     },
   );
 
-  // Sprite-only overlay (small, fixed width, no bubble)
+  // Sprite overlay
   void ctx.ui.custom<void>(
     (_tui: any, _theme: any, _keybindings: any, _done: (result: void) => void) => {
       overlayTui = _tui;
@@ -269,13 +269,11 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
       overlayOptions: {
         anchor: 'bottom-right' as const,
         width: runtime.getActiveBuddy() ? getBuddyDisplayWidth(runtime.getActiveBuddy()!) : 0,
-        margin: { right: 2, bottom: 2 },
+        margin: { right: 2, bottom: 5 },
         nonCapturing: true,
         visible: (termWidth: number) => termWidth >= 60 && getSpriteDisplay(runtime).visible,
       },
-      onHandle: (handle) => {
-        buddyOverlayHandle = handle;
-      },
+      onHandle: (handle) => { buddyOverlayHandle = handle; },
     },
   );
 }
