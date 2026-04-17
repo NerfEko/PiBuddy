@@ -2,7 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-age
 import { getBubbleTextCharLimit } from './bubble.ts';
 import { showBuddyCard, showRosterBrowser } from './card.ts';
 import { registerBuddyCommands } from './commands.ts';
-import { installBuddyEditor, clearBuddyEditor, type BuddyVisualState } from './editor.ts';
+import { installBuddyEditor, clearBuddyEditor, requestOverlayRender, type BuddyVisualState } from './editor.ts';
 import { generateSoul } from './soul.ts';
 import { maybeGenerateReaction, classifyTurn, testBuddyModelReaction } from './reaction.ts';
 import { randomSeed, rollBuddy } from './roll.ts';
@@ -30,7 +30,8 @@ export default function (pi: ExtensionAPI) {
   let lastReactionTurn = -999;
   let lastReactionAt = 0;
   let buddyRuntime: import('./editor.ts').BuddyEditorRuntime | null = null;
-  const requestRender = () => {};
+    let animInterval: ReturnType<typeof setInterval> | undefined;
+  const requestRender = () => { requestOverlayRender(); };
 
   const save = async () => {
     if (!state) return;
@@ -52,57 +53,6 @@ export default function (pi: ExtensionAPI) {
       lastInstalledBuddyId = currentId;
       installBuddyEditor(pi, ctx, buddyRuntime);
     }
-  };
-
-  const installFooter = (ctx: ExtensionContext) => {
-    if (!ctx.hasUI) return;
-    ctx.ui.setFooter((tui: any, theme: any, footerData: any) => {
-      const unsub = footerData.onBranchChange(() => tui.requestRender());
-      return {
-        dispose: unsub,
-        invalidate() {},
-        render(width: number): string[] {
-          const buddy = getActiveBuddy(state);
-          const usage = state.sessionUsage;
-          const fmt = (n: number) => n < 1000 ? `${n}` : `${(n / 1000).toFixed(1)}k`;
-
-          // Left: git branch + other extension statuses
-          const branch = footerData.getGitBranch();
-          const statuses = footerData.getExtensionStatuses() as Map<string, string>;
-          const leftParts: string[] = [];
-          if (branch) leftParts.push(branch);
-          for (const [key, val] of statuses) {
-            if (key !== 'pi-buddy' && val) leftParts.push(val);
-          }
-          const left = theme.fg('dim', leftParts.join(' · ') || '');
-
-          // Right: buddy name + model
-          const buddyStr = buddy && !state.settings.hidden
-            ? `${buddy.name} ${buddy.species} ${buddy.rarity}${buddy.shiny ? ' ✨' : ''}`
-            : '';
-          const tokenStr = usage.estimatedInputTokens > 0
-            ? `↑${fmt(usage.estimatedInputTokens)} ↓${fmt(usage.estimatedOutputTokens)}`
-            : '';
-          const modelName = ctx.model?.id || '';
-          const rightParts = [modelName].filter(Boolean);
-          const right = theme.fg('dim', rightParts.join(' · '));
-
-          const { visibleWidth } = require('@mariozechner/pi-tui') as any;
-          const { truncateToWidth } = require('@mariozechner/pi-tui') as any;
-
-          // Line 1: original footer (branch · other statuses ... model)
-          const pad = ' '.repeat(Math.max(1, width - visibleWidth(left) - visibleWidth(right)));
-          const line1 = truncateToWidth(left + pad + right, width);
-
-          // Line 2: buddy info right-aligned
-          const buddyRight = theme.fg('dim', [buddyStr, tokenStr ? `buddy: ${tokenStr}` : ''].filter(Boolean).join(' · '));
-          const pad2 = ' '.repeat(Math.max(0, width - visibleWidth(buddyRight)));
-          const line2 = buddyStr ? truncateToWidth(pad2 + buddyRight, width) : '';
-
-          return line2 ? [line1, line2] : [line1];
-        },
-      };
-    });
   };
 
   const hatch = async (ctx: ExtensionContext) => {
@@ -379,6 +329,17 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
+  pi.registerShortcut('ctrl+shift+b', {
+    description: 'Toggle buddy visibility',
+    handler: async (ctx) => {
+      if (!state) return;
+      state.settings.hidden = !state.settings.hidden;
+      await save();
+      syncStatus(ctx);
+      ctx.ui.notify(state.settings.hidden ? 'Buddy hidden.' : 'Buddy visible.', 'info');
+    },
+  });
+
   pi.on('session_start', async (_event, ctx) => {
     state = await loadState();
 
@@ -390,7 +351,15 @@ export default function (pi: ExtensionAPI) {
 
     lastInstalledBuddyId = state.activeBuddyId;
     installBuddyEditor(pi, ctx, buddyRuntime);
-    installFooter(ctx);
+
+    // Animation loop: advance sprite frame, expire bubble/hearts
+    if (animInterval) clearInterval(animInterval);
+    animInterval = setInterval(() => {
+      visual.tick += 1;
+      if (visual.bubbleUntil && Date.now() > visual.bubbleUntil) visual.bubbleText = null;
+      if (visual.animationState === 'petted' && Date.now() > visual.heartsUntil) visual.animationState = 'idle';
+      requestRender();
+    }, 500);
 
     syncStatus(ctx);
   });
@@ -443,6 +412,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on('session_shutdown', async (_event, ctx) => {
+    if (animInterval) { clearInterval(animInterval); animInterval = undefined; }
     clearBuddyEditor(ctx);
     await save();
   });

@@ -1,3 +1,4 @@
 node_modules/
 .pi/tasks/
 .pi/pi-buddy/state.json
+tsconfig.local.json

@@ -22,6 +22,12 @@ export interface BuddyEditorRuntime {
 }
 
 let buddyOverlayHandle: OverlayHandle | undefined;
+let bubbleSpeechHandle: OverlayHandle | undefined;
+let overlayTui: any = null;
+
+export function requestOverlayRender(): void {
+  overlayTui?.requestRender();
+}
 
 function rpad(str: string, width: number): string {
   const vw = visibleWidth(str);
@@ -105,6 +111,47 @@ function getSpriteDisplay(runtime: BuddyEditorRuntime): {
   return { visible: true, displayWidth, lines };
 }
 
+/** Speech bubble overlay — top-left of the sprite */
+class BubbleSpeechOverlay {
+  constructor(private runtime: BuddyEditorRuntime) {}
+
+  render(width: number): string[] {
+    const visual = this.runtime.getVisualState();
+    const state = this.runtime.getState();
+    const buddy = this.runtime.getActiveBuddy();
+    if (!visual.bubbleText || Date.now() >= visual.bubbleUntil || !buddy || state.settings.hidden) {
+      return [];
+    }
+
+    const innerWidth = Math.max(1, width - 4); // "│ " + " │"
+    const words = visual.bubbleText.split(' ');
+    const lines: string[] = [];
+    let current = '';
+    for (const word of words) {
+      const test = current ? `${current} ${word}` : word;
+      if (visibleWidth(test) <= innerWidth) {
+        current = test;
+      } else {
+        if (current) lines.push(current);
+        current = word.slice(0, innerWidth);
+      }
+    }
+    if (current) lines.push(current);
+    if (lines.length === 0) return [];
+
+    const bar = '─'.repeat(width - 2);
+    return [
+      `╭${bar}╮`,
+      ...lines.map(l => `│ ${l.padEnd(innerWidth)} │`),
+      `╰${bar}╯`,
+      `${'  '.repeat(Math.floor((width - 2) / 2))}╲`,
+    ];
+  }
+
+  invalidate(): void {}
+  dispose(): void {}
+}
+
 /** Overlay component: sprite + name only, no bubble */
 class BuddySpriteOverlay {
   constructor(private runtime: BuddyEditorRuntime) {}
@@ -178,6 +225,8 @@ export class BuddyEditor extends CustomEditor {
 function hideBuddyOverlay(): void {
   buddyOverlayHandle?.hide();
   buddyOverlayHandle = undefined;
+  bubbleSpeechHandle?.hide();
+  bubbleSpeechHandle = undefined;
 }
 
 export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEditorRuntime): void {
@@ -185,15 +234,42 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
 
   hideBuddyOverlay();
 
+  const spriteWidth = runtime.getActiveBuddy() ? getBuddyDisplayWidth(runtime.getActiveBuddy()!) : 20;
+  const bubbleWidth = 32;
+
+  // Speech bubble overlay — positioned top-left of the sprite
+  void ctx.ui.custom<void>(
+    (_tui: any, _theme: any, _keybindings: any, _done: (result: void) => void) => new BubbleSpeechOverlay(runtime),
+    {
+      overlay: true,
+      overlayOptions: {
+        anchor: 'bottom-right' as const,
+        width: bubbleWidth,
+        margin: { right: spriteWidth + 3, bottom: 6 },
+        nonCapturing: true,
+        visible: (termWidth: number) => {
+          const v = runtime.getVisualState();
+          return termWidth >= 80 && !!runtime.getActiveBuddy() &&
+            !runtime.getState().settings.hidden &&
+            !!v.bubbleText && Date.now() < v.bubbleUntil;
+        },
+      },
+      onHandle: (handle) => { bubbleSpeechHandle = handle; },
+    },
+  );
+
   // Sprite-only overlay (small, fixed width, no bubble)
   void ctx.ui.custom<void>(
-    (_tui: any, _theme: any, _keybindings: any, _done: (result: void) => void) => new BuddySpriteOverlay(runtime),
+    (_tui: any, _theme: any, _keybindings: any, _done: (result: void) => void) => {
+      overlayTui = _tui;
+      return new BuddySpriteOverlay(runtime);
+    },
     {
       overlay: true,
       overlayOptions: {
         anchor: 'bottom-right' as const,
         width: runtime.getActiveBuddy() ? getBuddyDisplayWidth(runtime.getActiveBuddy()!) : 0,
-        margin: { right: 1, bottom: 2 },
+        margin: { right: 2, bottom: 2 },
         nonCapturing: true,
         visible: (termWidth: number) => termWidth >= 60 && getSpriteDisplay(runtime).visible,
       },
@@ -202,15 +278,8 @@ export function installBuddyEditor(_pi: ExtensionAPI, ctx: any, runtime: BuddyEd
       },
     },
   );
-
-  ctx.ui.setEditorComponent((tui: any, theme: any, keybindings: any) =>
-    new BuddyEditor(tui, theme, keybindings, runtime),
-  );
 }
 
 export function clearBuddyEditor(ctx: any): void {
   hideBuddyOverlay();
-  if (ctx.hasUI) {
-    ctx.ui.setEditorComponent(undefined);
-  }
 }
