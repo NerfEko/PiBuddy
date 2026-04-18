@@ -329,7 +329,7 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  pi.registerShortcut('ctrl+shift+b', {
+  pi.registerShortcut("alt+'", {
     description: 'Toggle buddy visibility',
     handler: async (ctx) => {
       if (!state) return;
