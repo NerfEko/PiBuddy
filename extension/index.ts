@@ -2,6 +2,13 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
+import { DynamicBorder } from "@mariozechner/pi-coding-agent";
+import {
+	Container,
+	type SelectItem,
+	SelectList,
+	Text,
+} from "@mariozechner/pi-tui";
 import { getBubbleTextCharLimit } from "./bubble.ts";
 import { showBuddyCard, showRosterBrowser } from "./card.ts";
 import { registerBuddyCommands } from "./commands.ts";
@@ -386,23 +393,79 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 			const current = state.settings.preferredModel;
-			const autoLabel = `Auto-detect${!current ? " (current)" : ""}`;
-			const modelLabels = available.map((m: any) => {
-				const key = `${m.provider}/${m.id}`;
-				return `${key}${current === key ? " (current)" : ""}`;
-			});
-			const choices = [autoLabel, ...modelLabels];
-			const selected = await ctx.ui.select("Buddy model", choices);
+			const items: SelectItem[] = [
+				{
+					value: "auto",
+					label: "Auto-detect",
+					description: !current ? "(current)" : "",
+				},
+				...available.map((m: any) => {
+					const key = `${m.provider}/${m.id}`;
+					return {
+						value: key,
+						label: key,
+						description: current === key ? "(current)" : "",
+					};
+				}),
+			];
+
+			const selected = await ctx.ui.custom<string | null>(
+				(tui, theme, _kb, done) => {
+					const container = new Container();
+					container.addChild(
+						new DynamicBorder((s: string) => theme.fg("accent", s)),
+					);
+					container.addChild(
+						new Text(theme.fg("accent", theme.bold("Buddy model")), 1, 0),
+					);
+					const selectList = new SelectList(
+						items,
+						Math.min(items.length, 12),
+						{
+							selectedPrefix: (t) => theme.fg("accent", t),
+							selectedText: (t) => theme.fg("accent", t),
+							description: (t) => theme.fg("dim", t),
+							scrollInfo: (t) => theme.fg("dim", t),
+							noMatch: (t) => theme.fg("warning", t),
+						},
+						{ enableSearch: true },
+					);
+					selectList.onSelect = (item) => done(item.value);
+					selectList.onCancel = () => done(null);
+					container.addChild(selectList);
+					container.addChild(
+						new Text(
+							theme.fg(
+								"dim",
+								"type to search · ↑↓ navigate · enter select · esc cancel",
+							),
+							1,
+							0,
+						),
+					);
+					container.addChild(
+						new DynamicBorder((s: string) => theme.fg("accent", s)),
+					);
+					return {
+						render: (w) => container.render(w),
+						invalidate: () => container.invalidate(),
+						handleInput: (data) => {
+							selectList.handleInput(data);
+							tui.requestRender();
+						},
+					};
+				},
+			);
+
 			if (selected == null) return;
-			if (selected === autoLabel) {
+			if (selected === "auto") {
 				state.settings.preferredModel = undefined;
 				await save();
 				ctx.ui.notify("Buddy model: auto-detect", "success");
 			} else {
-				const key = selected.replace(" (current)", "");
-				state.settings.preferredModel = key;
+				state.settings.preferredModel = selected;
 				await save();
-				ctx.ui.notify(`Buddy model: ${key}`, "success");
+				ctx.ui.notify(`Buddy model: ${selected}`, "success");
 			}
 		},
 		async enablefallbacks(ctx) {
