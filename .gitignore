@@ -1,0 +1,6 @@
+node_modules/
+.pi-lens/
+.pi/tasks/
+.pi/extensions/
+.pi/settings.json
+.pi/pi-buddy/state.json

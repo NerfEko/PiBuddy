@@ -1,0 +1,31 @@
+{
+	"name": "pi-buddy",
+	"version": "0.1.1",
+	"description": "An animated ASCII companion that lives beside your Pi input box. Hatches buddies with unique species, stats, and personalities. Reacts to what you're coding.",
+	"keywords": [
+		"pi-package",
+		"pi-extension",
+		"buddy",
+		"companion",
+		"ascii"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/NerfEko/PiBuddy"
+	},
+	"type": "module",
+	"pi": {
+		"extensions": [
+			"./extension"
+		]
+	},
+	"peerDependencies": {
+		"@mariozechner/pi-ai": "*",
+		"@mariozechner/pi-coding-agent": "*",
+		"@mariozechner/pi-tui": "*"
+	},
+	"scripts": {
+		"test": "node --test extension/tests/*.test.ts"
+	}
+}
