@@ -68,11 +68,13 @@ A model is required for hatching new buddies (soul generation) and for contextua
 
 Reactions are generated using the buddy's name, personality, stats, and a summary of what just happened — including what files changed and what the AI said. This keeps reactions specific to the work rather than generic.
 
+Reactions are dynamically sized to fit your terminal width. The character limit is computed from your editor width minus the buddy sprite and chrome, then trimmed to avoid visual clipping. If the model returns something too long, it's progressively shortened — first by picking the longest fitting sentence, then by word, then by hard truncation with an ellipsis.
+
 ## Token usage
 
-- Soul generation: ~120-220 tokens, once per hatch
-- Reactions: ~60-120 tokens per turn, ~85% chance, 1 turn cooldown
-- Normal sessions (reactions only, no hatches): typically <2K tokens/hour
+- Soul generation: output capped at 220 tokens (hard cap), once per hatch
+- Reactions: output token cap is derived from the dynamic character limit (60% of bubble char limit, min 28 chars), divided by ~3.5 chars/token, clamped by target 80 and hard cap 160. On a typical 80-col terminal this works out to ~13 output tokens; on wider terminals it scales up to 80. Input tokens vary with turn context. ~85% chance, 1 turn cooldown, max 30 reactions per session
+- Normal sessions (reactions only, no hatches): typically well under 2K output tokens per session
 
 ## State
 
