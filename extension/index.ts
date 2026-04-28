@@ -75,6 +75,7 @@ export default function (pi: ExtensionAPI) {
 	let lastReactionTurn = -999;
 	let lastReactionAt = 0;
 	let buddyRuntime: import("./editor.ts").BuddyEditorRuntime | null = null;
+	let reactionAbort: AbortController | null = null;
 	const requestRender = () => {};
 
 	const save = async () => {
@@ -522,11 +523,15 @@ export default function (pi: ExtensionAPI) {
 		requestRender();
 	});
 
-	pi.on("turn_end", async (event: any, ctx) => {
+	pi.on("turn_end", (event: any, ctx) => {
 		completedTurns += 1;
 		visual.animationState = "idle";
 		const buddy = activeBuddy();
 		if (!buddy || state.settings.hidden) {
+			requestRender();
+			return;
+		}
+		if (reactionAbort) {
 			requestRender();
 			return;
 		}
@@ -548,25 +553,35 @@ export default function (pi: ExtensionAPI) {
 			assistantText,
 			toolResults: toolResultsWithArgs,
 		});
-		const reaction = await maybeGenerateReaction(
-			ctx,
-			state,
-			buddy,
-			summary,
-			completedTurns,
-			lastReactionTurn,
-			lastReactionAt,
-			reactionCharLimit(buddy),
-		);
-		if (reaction) {
-			buddy.lastSaid = reaction.text;
-			visual.bubbleText = reaction.text;
-			visual.bubbleUntil = Date.now() + 10000;
-			lastReactionAt = Date.now();
-			lastReactionTurn = completedTurns;
-			await save();
-		}
-		requestRender();
+		const ac = new AbortController();
+		reactionAbort = ac;
+		void (async () => {
+			try {
+				const reaction = await maybeGenerateReaction(
+					{ ...ctx, signal: ac.signal },
+					state,
+					buddy,
+					summary,
+					completedTurns,
+					lastReactionTurn,
+					lastReactionAt,
+					reactionCharLimit(buddy),
+				);
+				if (!reaction) return;
+				if (ac.signal.aborted) return;
+				buddy.lastSaid = reaction.text;
+				visual.bubbleText = reaction.text;
+				visual.bubbleUntil = Date.now() + 10000;
+				lastReactionAt = Date.now();
+				lastReactionTurn = completedTurns;
+				await save();
+				requestRender();
+			} finally {
+				if (reactionAbort === ac) reactionAbort = null;
+			}
+			// errors are swallowed (best-effort only)
+    })();
+    requestRender();
 	});
 
 	pi.on("agent_end", async () => {
@@ -575,6 +590,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", async (_event, ctx) => {
+		reactionAbort?.abort();
 		clearBuddyEditor(ctx);
 		await save();
 	});
