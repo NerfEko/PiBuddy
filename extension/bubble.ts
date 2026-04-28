@@ -45,6 +45,14 @@ export function getBuddyDisplayWidth(buddy: BuddyRecord): number {
 	return Math.max(visualSpriteWidth, nameVW);
 }
 
+export function getBubbleFitLimit(
+	termWidth: number,
+	buddy: BuddyRecord,
+): number {
+	const { fitLimit } = getBubbleSizing(termWidth, buddy);
+	return fitLimit;
+}
+
 export function getBubbleTextCharLimit(
 	termWidth: number,
 	buddy: BuddyRecord,

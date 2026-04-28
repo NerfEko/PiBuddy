@@ -18,7 +18,6 @@ export type BuddyCommandAction =
 	| "model"
 	| "enablefallbacks"
 	| "disablefallbacks"
-	| "test"
 	| "footer";
 
 export interface BuddyCommand {
@@ -44,7 +43,6 @@ export interface BuddyCommandRuntime {
 	model(ctx: any): Promise<void>;
 	enablefallbacks(ctx: any): Promise<void>;
 	disablefallbacks(ctx: any): Promise<void>;
-	test(ctx: any, query: string): Promise<void>;
 	footer(ctx: any, query: string): Promise<void>;
 }
 
@@ -69,8 +67,6 @@ export function parseBuddyCommand(args?: string): BuddyCommand {
 		case "disablefallbacks":
 		case "footer":
 			return { action: head };
-		case "test":
-			return { action: head, value };
 		case "switch":
 		case "spawn":
 		case "rename":
@@ -120,8 +116,6 @@ export async function executeBuddyCommand(
 			return runtime.enablefallbacks(ctx);
 		case "disablefallbacks":
 			return runtime.disablefallbacks(ctx);
-		case "test":
-			return runtime.test(ctx, command.value || "");
 		case "footer":
 			return runtime.footer(ctx, command.value || "");
 	}
@@ -148,7 +142,6 @@ export function registerBuddyCommands(
 		"model",
 		"enablefallbacks",
 		"disablefallbacks",
-		"test",
 		"footer",
 	];
 	const speciesList = [

@@ -4,7 +4,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "@mariozechner/pi-tui";
-import { getBubbleTextCharLimit, getBuddyDisplayWidth } from "./bubble.ts";
+import { getBubbleFitLimit, getBubbleTextCharLimit, getBuddyDisplayWidth } from "./bubble.ts";
 import { IDLE_SEQUENCE } from "./constants.ts";
 import { renderSprite } from "./sprites.ts";
 import type { BuddyRecord, BuddyState } from "./state.ts";
@@ -176,20 +176,27 @@ export class BuddyEditor extends CustomEditor {
 		const reservedWidth = display.displayWidth + 1;
 		const editorWidth = Math.max(30, width - reservedWidth);
 		const editorLines = super.render(editorWidth);
-		const result = editorLines.map((l) => rpad(l, width));
+		const result = editorLines.map((l) => {
+			// Safety: Pi's base editor can occasionally overshoot the requested
+			// width, especially with styled/dynamic content. A final truncation
+			// prevents hard crashes when a line is a few cells too wide.
+			const safe = visibleWidth(l) > width ? truncateToWidth(l, width) : l;
+			return rpad(safe, width);
+		});
 
 		// Always reserve one bubble row so layout stays stable.
 		const now = Date.now();
 		const showBubble = visual.bubbleText && visual.bubbleUntil > now;
 		const bubbleAreaWidth = Math.max(1, width - reservedWidth);
 		if (showBubble) {
-			const maxTextWidth = getBubbleTextCharLimit(width, buddy);
+			// Use fitLimit (true available text space) for clamping, not
+			// preferredLimit (a stylistic target that can be up to 2x larger).
+			const maxTextWidth = getBubbleFitLimit(width, buddy);
 			const text = clampBubbleTextToWidth(visual.bubbleText!, maxTextWidth);
 			const rawBubbleLine = `[ ${colorBuddyText(text)} ]-`;
-			const bubbleLine =
-				visibleWidth(rawBubbleLine) > bubbleAreaWidth
-					? truncateToWidth(rawBubbleLine, bubbleAreaWidth)
-					: rawBubbleLine;
+			// Unconditional truncation as a safety rail — even with correct
+			// width math, ANSI/glyph width drift can add a few cells.
+			const bubbleLine = truncateToWidth(rawBubbleLine, bubbleAreaWidth);
 			const padded = rpad(
 				" ".repeat(Math.max(0, bubbleAreaWidth - visibleWidth(bubbleLine))) +
 					bubbleLine,

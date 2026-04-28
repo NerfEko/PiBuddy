@@ -45,6 +45,8 @@ Then do `/reload` or restart Pi. On first load, use `/buddy hatch` to get your f
 | `/buddy mute` / `/buddy unmute` | Toggle reactions |
 | `/buddy off` / `/buddy on` | Hide or show the buddy |
 | `/buddy model` | Pick which model to use for reactions |
+| `/buddy enablefallbacks` | Enable local fallback reactions and names |
+| `/buddy disablefallbacks` | Disable local fallbacks (model-only mode) |
 
 Tab completion works on all subcommands and species names.
 
@@ -52,15 +54,15 @@ Tab completion works on all subcommands and species names.
 
 Buddy AI uses a cheap model auto-detected from your configured providers, in this order:
 
-1. GitHub Copilot: claude-haiku-4.5, gpt-4o, gemini-3-flash-preview
-2. Anthropic: claude-haiku-4
+1. GitHub Copilot: gpt-4o, gpt-4o-mini, claude-haiku-4.5, gemini-3-flash-preview
+2. Anthropic: claude-haiku-4.5, claude-haiku-4
 3. Google: gemini-2.0-flash, gemini-1.5-flash
 4. OpenAI: gpt-4o-mini, gpt-4o
 5. Falls back to your active model if none of the above are available
 
 Use `/buddy model` to override the auto-detected model.
 
-All model calls are optional. The buddy works fully offline with local fallback reactions and names.
+A model is required for hatching new buddies (soul generation) and for contextual reactions. Without a model, the buddy displays but won't speak.
 
 ## Reactions
 
@@ -68,9 +70,9 @@ Reactions are generated using the buddy's name, personality, stats, and a summar
 
 ## Token usage
 
-- Soul generation: around 120-220 tokens, once per hatch
-- Reactions: around 60-120 tokens per turn, ~70% chance, 1 turn cooldown
-- Normal sessions with no new hatches: 0 tokens
+- Soul generation: ~120-220 tokens, once per hatch
+- Reactions: ~60-120 tokens per turn, ~85% chance, 1 turn cooldown
+- Normal sessions (reactions only, no hatches): typically <2K tokens/hour
 
 ## State
 
@@ -81,7 +83,7 @@ Buddy state is stored globally at `~/.pi/pi-buddy/state.json` so your roster per
 Pull requests are welcome. Some areas that could use improvement:
 
 - More sprite polish and additional species
-- Better reaction quality and more varied local fallbacks
+- Better reaction quality and prompt tuning
 - Settings UI for toggling reaction mode, model preferences, etc.
 - Performance improvements to the editor overlay rendering
 - Support for themes (rarity colors, etc.)

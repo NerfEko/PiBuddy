@@ -1,6 +1,6 @@
 {
 	"name": "pi-buddy",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "An animated ASCII companion that lives beside your Pi input box. Hatches buddies with unique species, stats, and personalities. Reacts to what you're coding.",
 	"keywords": [
 		"pi-package",

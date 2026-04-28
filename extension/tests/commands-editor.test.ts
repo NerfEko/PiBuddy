@@ -3,17 +3,15 @@ import test from "node:test";
 import { getBubbleTextCharLimit, getBuddyDisplayWidth } from "../bubble.ts";
 import { parseBuddyCommand } from "../commands.ts";
 
-test("buddy command parser handles switch, test, and default", () => {
+test("buddy command parser handles switch, pet, and default", () => {
 	assert.deepEqual(parseBuddyCommand(""), { action: "default" });
 	assert.deepEqual(parseBuddyCommand("switch Nova Duck"), {
 		action: "switch",
 		value: "Nova Duck",
 	});
 	assert.deepEqual(parseBuddyCommand("pet"), { action: "pet" });
-	assert.deepEqual(parseBuddyCommand("test verify model reaction"), {
-		action: "test",
-		value: "verify model reaction",
-	});
+	assert.deepEqual(parseBuddyCommand("enablefallbacks"), { action: "enablefallbacks" });
+	assert.deepEqual(parseBuddyCommand("disablefallbacks"), { action: "disablefallbacks" });
 });
 
 test("bubble text limit scales with terminal width for wrapped bubble lines", () => {

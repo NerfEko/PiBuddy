@@ -1,0 +1,4 @@
+.git/
+.pi/
+node_modules/
+extension/tests/

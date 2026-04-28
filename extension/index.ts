@@ -20,7 +20,6 @@ import {
 import {
 	classifyTurn,
 	maybeGenerateReaction,
-	testBuddyModelReaction,
 } from "./reaction.ts";
 import { randomSeed, rollBuddy } from "./roll.ts";
 import { generateSoul } from "./soul.ts";
@@ -488,58 +487,11 @@ export default function (pi: ExtensionAPI) {
 				"info",
 			);
 		},
-		async test(ctx, query) {
-			const buddy = activeBuddy();
-			if (!buddy) {
-				ctx.ui.notify("No active buddy yet. Use /buddy hatch.", "info");
-				return;
-			}
-			visual.animationState = "thinking";
-			visual.bubbleText = "...";
-			visual.bubbleUntil = Date.now() + 15000;
-			requestRender();
 
-			const result = await testBuddyModelReaction(
-				ctx,
-				state,
-				buddy,
-				query,
-				reactionCharLimit(buddy),
-			);
-			visual.animationState = "idle";
-
-			if (result.ok) {
-				buddy.lastSaid = result.text;
-				visual.bubbleText = result.text;
-				visual.bubbleUntil = Date.now() + 10000;
-				await save();
-				requestRender();
-				ctx.ui.notify(`Buddy AI test passed via ${result.modelKey}`, "success");
-				return;
-			}
-
-			const failureText =
-				result.reason === "no-model"
-					? "No AI model available."
-					: result.reason === "empty"
-						? "AI returned no text."
-						: result.reason === "aborted"
-							? "AI test was aborted."
-							: `AI test failed${result.modelKey ? ` via ${result.modelKey}` : ""}.`;
-			visual.bubbleText = null;
-			visual.bubbleUntil = 0;
-			requestRender();
-			ctx.ui.notify(
-				result.error ? `${failureText} ${result.error}` : failureText,
-				"error",
-			);
-		},
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
 		state = await loadState();
-		state.settings.fallbacksEnabled = false;
-		state.settings.soulMode = "model";
 
 		buddyRuntime = {
 			getState: () => state,
