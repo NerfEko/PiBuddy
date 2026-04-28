@@ -52,7 +52,7 @@ export function shortenReactionText(rawText: string, maxChars: number): string {
 		}
 	}
 
-	const candidates = [...candidateSet].sort((a, b) => a.length - b.length);
+	const candidates = [...candidateSet].sort((a, b) => b.length - a.length);
 	const fitting = candidates.find(
 		(candidate) => candidate.length <= maxChars && candidate.length >= 6,
 	);
